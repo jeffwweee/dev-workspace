@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+bin/*.js
+bin/*.js.map
+bin/*.d.ts
+bin/*.d.ts.map
+bin/lib/*.js
+bin/lib/*.js.map
+bin/lib/*.d.ts
+bin/lib/*.d.ts.map
+
+# Runtime state (keep structure, ignore content)
+state/*.json
+state/*.log
+state/sessions/
+
+# Keep empty state files tracked
+!state/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test projects (sample data)
+projects/sample-project/

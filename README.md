@@ -1,0 +1,112 @@
+# Dev-Workspace
+
+A plug-and-play Claude Code workspace supporting **multiple concurrent CC sessions** across **multiple projects**, with a shared control plane for state, locks, queues, and audit logs.
+
+## Features
+
+- **Multi-session support** - Run multiple Claude Code instances safely
+- **Lock management** - Prevent conflicts with automatic lock acquisition
+- **Task queue** - Manage work across multiple projects
+- **Audit logging** - Full traceability of all actions
+- **Skills system** - Reusable, delegatable skills for common workflows
+- **Safety gates** - Built-in verification before marking work complete
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Initialize a session
+node bin/dw.js init
+
+# Add a project
+node bin/dw.js add myproject --path ../myproject
+
+# Switch to project
+node bin/dw.js switch myproject
+
+# Claim a task
+node bin/dw.js claim --task TASK-001
+
+# ... do work ...
+
+# Record result and release lock
+node bin/dw.js record-result --task TASK-001 --status passed --files "src/main.ts" --summary "Done"
+node bin/dw.js release --all
+```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `node bin/dw.js init` | Create new session |
+| `node bin/dw.js status` | Show session, locks, and projects |
+| `node bin/dw.js add <name> --path <path>` | Register a project |
+| `node bin/dw.js switch <project>` | Set active project |
+| `node bin/dw.js claim --task <id>` | Acquire lock on task |
+| `node bin/dw.js release --all` | Release all locks |
+| `node bin/dw.js pick-next` | Get next available task |
+| `node bin/dw.js record-result` | Log task completion |
+
+## Project Structure
+
+```
+dev-workspace/
+├── .claude/              # Claude Code configuration
+│   ├── commands/         # Custom CLI commands
+│   ├── policies/         # Orchestrator rules and safety gates
+│   ├── references/       # Reusable documentation references
+│   ├── skills/           # Delegatable skills
+│   └── WORKSPACE_CONTEXT.md
+├── bin/                  # CLI implementation
+│   └── dw.js             # Main CLI command
+├── registry/             # Project registry
+├── state/                # Runtime state
+│   ├── active.json       # Current session
+│   ├── locks.json        # Lock table
+│   └── audit.log         # Event log
+└── projects/             # Individual projects
+```
+
+## Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `project-session` | Main orchestrator for workflows |
+| `project-planner` | Task management and planning |
+| `docs-creator` | Documentation creation |
+| `git-agent` | Git operations |
+| `code-reviewer` | Code review and linting |
+| `tester` | Testing and verification |
+
+## Multi-Session Workflow
+
+Each Claude Code instance should:
+
+1. Run `node bin/dw.js init` to get a unique session ID
+2. Claim locks before any work
+3. Release locks when done
+4. Use `node bin/dw.js status` to see locks held by other sessions
+
+## Safety Gates
+
+Three gates ensure safe operations:
+
+1. **Start Gate** - Correct project, lock claimed, context loaded
+2. **Completion Gate** - Verification run, progress updated, git checkpoint
+3. **End Gate** - Progress logged, tasks updated, lock released
+
+## Development
+
+```bash
+# Build TypeScript
+npm run build
+
+# Watch mode
+npm run watch
+```
+
+## License
+
+MIT

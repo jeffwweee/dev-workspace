@@ -40,3 +40,8 @@ npm-debug.log*
 
 # Test projects (sample data)
 projects/sample-project/
+
+# User projects (local development)
+projects/project-wingman/
+projects/tg-agent/
+.mcp.json

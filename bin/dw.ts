@@ -164,6 +164,27 @@ program
     console.log(formatOutput(result, options.json));
   });
 
+// work - Start working on a project (switch + cd)
+program
+  .command('work')
+  .description('Start working on a project - switches project and outputs cd command')
+  .argument('<project_id>', 'Project ID or name')
+  .option('--json', 'Output as JSON')
+  .action(async (projectId, options) => {
+    const result = await commands.work(projectId);
+    console.log(formatOutput(result, options.json));
+  });
+
+// done - Finish working on current project
+program
+  .command('done')
+  .description('Finish working on current project - clears active project and outputs cd command')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const result = await commands.done();
+    console.log(formatOutput(result, options.json));
+  });
+
 // Global for JSON output flag
 declare global {
   var jsonOutput: boolean;

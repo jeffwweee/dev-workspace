@@ -16,6 +16,24 @@ Before using this skill:
 2. Run `node bin/dw.js add <project> --path <path>` to register the project
 3. Run `node bin/dw.js switch <project>` to set the active project
 
+## Usage Modes
+
+### `--select` (Project Selection Mode)
+Use this mode to choose which project to work on instead of auto-resuming:
+```
+/skill project-session --select
+```
+
+When this flag is provided:
+1. List all available projects using `node bin/dw.js list-projects`
+2. Ask the user which project they want to work on
+3. Switch to that project using `node bin/dw.js switch <project-name>`
+4. Show project status and available tasks
+5. Ask what the user wants to do next
+
+### Default Mode (Auto-Resume)
+Without flags, continue with the active session and project.
+
 ## Workflow
 
 ### 1. Start Gate Verification
@@ -90,6 +108,33 @@ See [dw-cli-reference.md](../references/dw-cli-reference.md#error-codes) for com
 | `DW_INVALID_TASK` | Task ID not found | Check tasks.json |
 
 ## Example
+
+### Project Selection Mode
+
+```
+User: /skill project-session --select
+
+1. List projects:
+   node bin/dw.js list-projects
+   # Shows: tg-agent, project-wingman
+
+2. Ask user: "Which project would you like to work on?"
+
+3. User selects: "tg-agent"
+
+4. Switch project:
+   node bin/dw.js switch tg-agent
+
+5. Show status:
+   node bin/dw.js status
+
+6. Ask user: "What would you like to do?"
+   - View tasks
+   - Work on a specific task
+   - Something else
+```
+
+### Task Execution Mode
 
 ```
 User: /skill project-session --task TASK-001

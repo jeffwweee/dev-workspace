@@ -1,0 +1,59 @@
+#!/bin/bash
+# dw-claude - Start Claude with dev-workspace context injected
+# Usage: dw-claude [any claude args...]
+
+WORKSPACE_ROOT="/Users/jeffwweee/jef/dev-workspace"
+
+# Find claude binary (check common locations)
+find_claude() {
+    # Try PATH first
+    if command -v claude &>/dev/null; then
+        echo "claude"
+        return
+    fi
+    # Try common locations
+    for path in \
+        "$HOME/.local/share/claude/versions/"* \
+        "/opt/homebrew/bin/claude" \
+        "/usr/local/bin/claude"
+    do
+        if [ -x "$path" ]; then
+            echo "$path"
+            return
+        fi
+    done
+    # Fallback: find latest version
+    local latest=$(ls -1v "$HOME/.local/share/claude/versions/" 2>/dev/null | tail -1)
+    if [ -n "$latest" ]; then
+        echo "$HOME/.local/share/claude/versions/$latest"
+        return
+    fi
+    echo "claude"  # fallback to PATH
+}
+
+# Get time-based greeting
+get_greeting() {
+    hour=$(date +%H)
+    if [ "$hour" -lt 12 ]; then
+        echo "Good morning"
+    elif [ "$hour" -lt 17 ]; then
+        echo "Good afternoon"
+    else
+        echo "Good evening"
+    fi
+}
+
+CLAUDE_BIN=$(find_claude)
+
+# Check if we're in the workspace or a subdirectory
+if [[ "$PWD" == "$WORKSPACE_ROOT"* ]]; then
+    GREETING=$(get_greeting)
+
+    # Simple prompt - just greeting and instruction
+    cat << EOF | "$CLAUDE_BIN" "$@"
+$GREETING, let's start a new session. Run /skill project-session --select to choose a project.
+EOF
+else
+    # Not in workspace, just start claude normally
+    "$CLAUDE_BIN" "$@"
+fi

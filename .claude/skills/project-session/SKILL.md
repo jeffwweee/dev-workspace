@@ -7,53 +7,62 @@ description: "Main orchestrator for dev-workspace multi-session Claude Code work
 
 ## Overview
 
-Main orchestrator skill for multi-session Claude Code workflows. Ensures safe, traceable work through lock management and proper delegation to specialized skills.
+Main orchestrator skill for multi-session Claude Code workflows. Ensures safe, traceable work through lock management, worktree isolation, and proper delegation to specialized skills.
 
 ## Prerequisites
 
 Before using this skill:
-1. Run `node bin/dw.js init` to create a session
-2. Run `node bin/dw.js add <project> --path <path>` to register the project
-3. Run `node bin/dw.js switch <project>` to set the active project
+1. Run `node bin/dw.js init` to create or resume a session
+2. Run `node bin/dw.js add <project> --path <path>` to register the project (if not already registered)
 
 ## Usage Modes
 
 ### `--select` (Project Selection Mode)
-Use this mode to choose which project to work on instead of auto-resuming:
+Use this mode to choose which project to work on:
 ```
 /skill project-session --select
 ```
 
 When this flag is provided:
-1. List all available projects using `node bin/dw.js list-projects`
-2. Ask the user which project they want to work on
-3. Switch to that project using `node bin/dw.js switch <project-name>`
-4. Show project status and available tasks
+1. List all available sessions using `node bin/dw.js sessions`
+2. Ask the user to resume an existing session or create new
+3. If new, list projects and ask which to work on
+4. Show session status and available tasks
 5. Ask what the user wants to do next
 
 ### Default Mode (Auto-Resume)
-Without flags, continue with the active session and project.
+Without flags, continue with the most recently active session.
 
-## Workflow
+## Multi-Session Workflow
 
-### 1. Start Gate Verification
-
-Verify these conditions before proceeding:
+### 1. Session Setup
 
 ```bash
-# Check session exists and is active
-node bin/dw.js status
+# Show session picker (resume existing or create new)
+node bin/dw.js init
 
-# Switch to correct project if needed
-node bin/dw.js switch <project-name>
+# Or explicitly create new session
+node bin/dw.js init --new
 
-# Claim lock on the task
-node bin/dw.js claim --task <TASK-ID>
+# Or resume specific session
+node bin/dw.js resume SESS-XXX
 ```
 
-### 2. Delegate to Specialized Skills
+### 2. Claim Task (Auto-Creates Worktree)
 
-After claiming a lock, delegate to appropriate skills:
+```bash
+# Claim creates worktree in ~/worktrees/<project>/<task>/
+node bin/dw.js claim --task V2-016
+
+# Output:
+# Lock acquired successfully. Working in ~/worktrees/tg-agent/V2-016
+```
+
+The worktree provides isolated working directory for the task.
+
+### 3. Delegate to Specialized Skills
+
+After claiming a task, delegate to appropriate skills:
 
 | Skill | Use For |
 |-------|---------|
@@ -63,7 +72,7 @@ After claiming a lock, delegate to appropriate skills:
 | `code-reviewer` | Code review, lint checks |
 | `tester` | Running tests, verification, smoke tests |
 
-### 3. Completion Gate Verification
+### 4. Completion Gate Verification
 
 Before releasing the lock, verify:
 
@@ -72,15 +81,45 @@ Before releasing the lock, verify:
 - `progress.md` is updated
 - Git checkpoint created (if applicable)
 
-### 4. End Gate Actions
+### 5. End Gate Actions
 
 ```bash
-# Record completion
-node bin/dw.js record-result --task <TASK-ID> --status passed --files <files> --summary "<summary>"
+# Record completion with PR URL
+node bin/dw.js record-result --task V2-016 --status passed --pr https://github.com/.../pull/42
 
-# Release lock
+# Release locks
 node bin/dw.js release --all
+
+# Optionally remove worktree (prompted automatically)
 ```
+
+## Session Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `node bin/dw.js init` | Show session picker |
+| `node bin/dw.js init --new` | Create new session |
+| `node bin/dw.js resume <id>` | Resume specific session |
+| `node bin/dw.js sessions` | List all sessions |
+| `node bin/dw.js status` | Show current session details |
+| `node bin/dw.js end <id>` | End a session |
+| `node bin/dw.js activity` | Update session activity |
+
+## Worktree Commands
+
+| Command | Description |
+|---------|-------------|
+| `node bin/dw.js worktree list` | List all worktrees |
+| `node bin/dw.js worktree create --project X --task Y` | Create worktree manually |
+| `node bin/dw.js worktree remove --project X --task Y` | Remove worktree |
+
+## Cleanup Commands
+
+| Command | Description |
+|---------|-------------|
+| `node bin/dw.js cleanup` | Clean expired sessions and locks |
+| `node bin/dw.js cleanup --prune` | Also remove orphaned worktrees |
+| `node bin/dw.js cleanup --dry-run` | Preview cleanup actions |
 
 ## Return Contract
 
@@ -98,94 +137,75 @@ See [safety-rules.md](../references/safety-rules.md#coordination-operations) for
 
 ## Error Codes
 
-See [dw-cli-reference.md](../references/dw-cli-reference.md#error-codes) for complete error code reference.
-
 | Code | Meaning | Action |
 |------|---------|--------|
 | `DW_LOCKED` | Resource already locked | Wait or contact lock owner |
 | `DW_NO_SESSION` | No active session | Run `node bin/dw.js init` |
 | `DW_NO_PROJECT` | Project not found | Run `node bin/dw.js add` first |
 | `DW_INVALID_TASK` | Task ID not found | Check tasks.json |
+| `DW_SESSION_NOT_FOUND` | Session doesn't exist | Run `node bin/dw.js sessions` |
+| `DW_WORKTREE_FAILED` | Worktree creation failed | Check git status |
 
-## Example
+## Example: Multi-Session Workflow
 
-### Project Selection Mode
+```
+# Terminal 1 - Working on task V2-016
+node bin/dw.js init --new
+node bin/dw.js claim --task V2-016
+# Working in ~/worktrees/tg-agent/V2-016
+
+# Terminal 2 - Working on task V2-014 (parallel)
+node bin/dw.js init --new
+node bin/dw.js claim --task V2-014
+# Working in ~/worktrees/tg-agent/V2-014
+
+# Check all sessions
+node bin/dw.js sessions
+# Shows both sessions with their tasks and worktrees
+```
+
+## Example: Task Completion
 
 ```
 User: /skill project-session --select
 
-1. List projects:
-   node bin/dw.js list-projects
-   # Shows: tg-agent, project-wingman
+1. Show sessions:
+   node bin/dw.js sessions
 
-2. Ask user: "Which project would you like to work on?"
+2. User selects or creates session
 
-3. User selects: "tg-agent"
+3. Claim task:
+   node bin/dw.js claim --task V2-016
+   # Auto-creates worktree
 
-4. Switch project:
-   node bin/dw.js switch tg-agent
+4. Work in worktree:
+   cd ~/worktrees/tg-agent/V2-016
 
-5. Show status:
-   node bin/dw.js status
-
-6. Ask user: "What would you like to do?"
-   - View tasks
-   - Work on a specific task
-   - Something else
-```
-
-### Task Execution Mode
-
-```
-User: /skill project-session --task TASK-001
-
-1. Start Gate:
-   node bin/dw.js status shows active session
-   node bin/dw.js switch myproject
-   node bin/dw.js claim --task TASK-001
-
-2. Delegation:
-   /skill project-planner --task TASK-001 --plan
-   /skill git-agent --checkout-branch feature/TASK-001
-   [implementation work]
+5. Delegate implementation:
    /skill tester --verify
    /skill docs-creator --update-progress
 
-3. Completion Gate:
-   Tests passing (42/42)
-   progress.md updated
-   Git commit created
+6. Completion:
+   node bin/dw.js record-result --task V2-016 --status passed --pr https://github.com/.../pull/42
+   # Prompted to remove worktree
 
-4. End Gate:
-   node bin/dw.js record-result --task TASK-001 --status passed
+7. Release:
    node bin/dw.js release --all
 
 Status: SUCCESS
 
 Summary:
-- Implemented user authentication feature
-- Added OAuth2 providers (Google, GitHub)
-- Created tests (all passing)
+- Implemented OAuth2 authentication feature
+- Created worktree for isolated development
+- PR created for code review
 
 Files changed:
 - src/auth/oauth.ts
-- src/auth/providers/google.ts
-- src/auth/providers/github.ts
 - tests/auth/oauth.test.ts
 
-Commands run:
-- node bin/dw.js claim --task TASK-001
-- npm test
-- git add .
-- git commit -m "feat: Add OAuth2 authentication"
-- node bin/dw.js record-result --task TASK-001 --status passed
-- node bin/dw.js release --all
-
-Evidence:
-- All tests passing (42/42)
-- Manual login test successful
-- Coverage: 89%
+Worktree:
+- ~/worktrees/tg-agent/V2-016 (removed after PR)
 
 Next recommended:
-- node bin/dw.js pick-next
+- Create PR session for merge management
 ```

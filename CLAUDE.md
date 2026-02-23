@@ -4,7 +4,7 @@ Instructions for Claude Code when working with this dev-workspace project.
 
 ## Project Overview
 
-This is a multi-session Claude Code workspace with state management, lock handling, and skill-based orchestration. It enables multiple Claude Code instances to work safely on multiple projects.
+This is a multi-session Claude Code workspace with state management, lock handling, and skill-based orchestration. It enables multiple Claude Code instances to work safely on multiple projects with git worktree isolation.
 
 ## Key Files
 
@@ -23,10 +23,24 @@ This is a multi-session Claude Code workspace with state management, lock handli
 Always use `node bin/dw.js` to run the CLI:
 
 ```bash
-node bin/dw.js init
-node bin/dw.js status
-node bin/dw.js claim --task TASK-001
-node bin/dw.js release --all
+# Session management
+node bin/dw.js init                    # Show session picker
+node bin/dw.js init --new              # Create new session
+node bin/dw.js init --resume SESS-XXX  # Resume specific session
+node bin/dw.js sessions                # List all sessions
+node bin/dw.js end SESS-XXX            # End a session
+
+# Task workflow
+node bin/dw.js claim --task TASK-001   # Claim task (creates worktree)
+node bin/dw.js status                  # Show workspace status
+node bin/dw.js release --all           # Release all locks
+
+# Worktree management
+node bin/dw.js worktree list           # List all worktrees
+
+# Cleanup
+node bin/dw.js cleanup                 # Clean expired sessions/locks
+node bin/dw.js cleanup --prune         # Also remove orphaned worktrees
 ```
 
 ## Skills
@@ -78,11 +92,25 @@ Next recommended:
 
 ## State Files
 
-- `state/active.json` - Current session and active project
+- `state/sessions.json` - Registry of all sessions
+- `state/sessions/SESS-XXX.json` - Per-session state
 - `state/locks.json` - Active locks with TTL
 - `state/queue.json` - Task queue
 - `state/audit.log` - Append-only event log (JSONL)
 - `registry/projects.json` - Registered projects
+
+## Worktree Structure
+
+Worktrees are created in `~/worktrees/<project>/<task>/`:
+
+```
+~/worktrees/
+├── tg-agent/
+│   ├── V2-016/
+│   └── V2-014/
+└── project-wingman/
+    └── TASK-001/
+```
 
 ## When Making Changes
 

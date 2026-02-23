@@ -1,14 +1,53 @@
-import { getStatePath, generateId, atomicWrite, readJson, auditLog, isLockExpired, extendLockTTL, type Lock, type Session } from '../state/manager.js';
+import {
+  getStatePath,
+  getRegistryPath,
+  generateId,
+  atomicWrite,
+  readJson,
+  auditLog,
+  isLockExpired,
+  extendLockTTL,
+  getSession,
+  updateSession,
+  getActiveSessions,
+  type Lock,
+  type SessionData,
+  type Project
+} from '../state/manager.js';
+import { createWorktree, type WorktreeInfo } from './worktree.js';
 
-async function getCurrentSession(): Promise<string | null> {
-  const activePath = getStatePath('active.json');
-  const session = await readJson<Session>(activePath, {
-    sessionId: null,
-    activeProject: null,
-    startTime: null,
-    status: 'inactive'
-  });
-  return session.sessionId;
+/**
+ * Get current session ID from active sessions
+ * For now, returns the most recently active session
+ */
+function getCurrentSessionId(): string | null {
+  const sessions = getActiveSessions();
+  if (sessions.length === 0) return null;
+
+  // Sort by lastActivity descending and return the most recent
+  sessions.sort((a, b) =>
+    new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+  );
+
+  return sessions[0].id;
+}
+
+export interface ClaimResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+  lock?: {
+    lockId: string;
+    projectId?: string;
+    taskId?: string;
+    expiresAt: string;
+  };
+  worktree?: WorktreeInfo;
+  conflictingLock?: {
+    lockId: string;
+    ownerId: string;
+    expiresAt: string;
+  };
 }
 
 export async function claim(options: {
@@ -16,11 +55,14 @@ export async function claim(options: {
   task?: string;
   owner?: string;
   ttl?: string;
-}): Promise<Record<string, unknown>> {
+  session?: string;
+  noWorktree?: boolean;
+}): Promise<ClaimResult> {
   const locksPath = getStatePath('locks.json');
-  const activePath = getStatePath('active.json');
+  const projectsPath = getRegistryPath('projects.json');
 
-  const sessionId = await getCurrentSession();
+  // Get session
+  const sessionId = options.session || getCurrentSessionId();
   if (!sessionId) {
     return {
       success: false,
@@ -29,10 +71,34 @@ export async function claim(options: {
     };
   }
 
+  const session = getSession(sessionId);
+  if (!session) {
+    return {
+      success: false,
+      error: 'DW_SESSION_NOT_FOUND',
+      message: `Session ${sessionId} not found`
+    };
+  }
+
   const ownerId = options.owner || sessionId;
   const ttl = parseInt(options.ttl || '120', 10);
 
   const locksData = readJson<{ locks: Lock[] }>(locksPath, { locks: [] });
+  const projectsData = readJson<{ projects: Project[] }>(projectsPath, { projects: [] });
+
+  // Determine project
+  let projectId = options.project;
+  let project: Project | undefined;
+
+  if (!projectId && session.project) {
+    projectId = session.project.id;
+  }
+
+  if (projectId) {
+    project = projectsData.projects.find(
+      p => p.id === projectId || p.name === projectId
+    );
+  }
 
   // Check for conflicting active locks
   const conflictingLock = locksData.locks.find(l => {
@@ -58,13 +124,27 @@ export async function claim(options: {
     };
   }
 
+  // Create worktree if claiming a task and project is known
+  let worktree: WorktreeInfo | undefined;
+  if (options.task && project && !options.noWorktree) {
+    try {
+      worktree = createWorktree(project.path, project.name, options.task);
+    } catch (error) {
+      return {
+        success: false,
+        error: 'DW_WORKTREE_FAILED',
+        message: `Failed to create worktree: ${error}`
+      };
+    }
+  }
+
   // Create new lock
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + ttl);
 
   const newLock: Lock = {
     lockId: generateId('lock'),
-    projectId: options.project,
+    projectId: project?.id || options.project,
     taskId: options.task,
     ownerId,
     acquiredAt: new Date().toISOString(),
@@ -75,17 +155,47 @@ export async function claim(options: {
   locksData.locks.push(newLock);
   atomicWrite(locksPath, locksData);
 
+  // Update session with lock and worktree info
+  const sessionUpdates: Partial<SessionData> = {
+    currentTask: options.task || session.currentTask,
+    locks: [...session.locks, newLock.lockId]
+  };
+
+  if (project && !session.project) {
+    sessionUpdates.project = {
+      id: project.id,
+      name: project.name,
+      path: project.path
+    };
+  }
+
+  if (worktree) {
+    sessionUpdates.worktree = {
+      path: worktree.path,
+      branch: worktree.branch,
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  updateSession(sessionId, sessionUpdates);
+
   auditLog({
     timestamp: new Date().toISOString(),
     event: 'lock_claimed',
     sessionId,
     data: {
       lockId: newLock.lockId,
-      projectId: options.project,
+      projectId: newLock.projectId,
       taskId: options.task,
-      ttl
+      ttl,
+      worktreePath: worktree?.path
     }
   });
+
+  const messageParts = ['Lock acquired successfully'];
+  if (worktree) {
+    messageParts.push(`Working in ${worktree.path}`);
+  }
 
   return {
     success: true,
@@ -95,7 +205,8 @@ export async function claim(options: {
       taskId: newLock.taskId,
       expiresAt: newLock.expiresAt
     },
-    message: 'Lock acquired successfully'
+    worktree,
+    message: messageParts.join('. ')
   };
 }
 
@@ -103,10 +214,11 @@ export async function release(options: {
   lock?: string;
   all?: boolean;
   owner?: string;
+  session?: string;
 }): Promise<Record<string, unknown>> {
   const locksPath = getStatePath('locks.json');
 
-  const sessionId = await getCurrentSession();
+  const sessionId = options.session || getCurrentSessionId();
   if (!sessionId) {
     return {
       success: false,
@@ -115,16 +227,19 @@ export async function release(options: {
     };
   }
 
+  const session = getSession(sessionId);
   const ownerId = options.owner || sessionId;
   const locksData = readJson<{ locks: Lock[] }>(locksPath, { locks: [] });
 
   let releasedCount = 0;
+  const releasedLockIds: string[] = [];
 
   if (options.all) {
     // Release all locks owned by current session
     for (const lock of locksData.locks) {
       if (lock.ownerId === ownerId && lock.status === 'active') {
         lock.status = 'released';
+        releasedLockIds.push(lock.lockId);
         releasedCount++;
       }
     }
@@ -149,6 +264,7 @@ export async function release(options: {
     }
 
     lock.status = 'released';
+    releasedLockIds.push(lock.lockId);
     releasedCount = 1;
   } else {
     return {
@@ -160,6 +276,12 @@ export async function release(options: {
 
   if (releasedCount > 0) {
     atomicWrite(locksPath, locksData);
+
+    // Update session to remove released locks
+    if (session) {
+      const updatedLocks = session.locks.filter(l => !releasedLockIds.includes(l));
+      updateSession(sessionId, { locks: updatedLocks });
+    }
 
     auditLog({
       timestamp: new Date().toISOString(),
@@ -182,10 +304,11 @@ export async function release(options: {
 export async function heartbeat(options: {
   owner?: string;
   lock?: string;
+  session?: string;
 }): Promise<Record<string, unknown>> {
   const locksPath = getStatePath('locks.json');
 
-  const sessionId = await getCurrentSession();
+  const sessionId = options.session || getCurrentSessionId();
   if (!sessionId) {
     return {
       success: false,

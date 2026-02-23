@@ -1,48 +1,75 @@
-import { getStatePath, getRegistryPath, readJson, type Session, type Lock, type Project } from '../state/manager.js';
+import {
+  getStatePath,
+  getRegistryPath,
+  readJson,
+  getActiveSessions,
+  getSession,
+  type Lock,
+  type Project,
+  type SessionRegistryEntry
+} from '../state/manager.js';
 
 export async function status(): Promise<Record<string, unknown>> {
-  const activePath = getStatePath('active.json');
   const locksPath = getStatePath('locks.json');
   const projectsPath = getRegistryPath('projects.json');
 
-  const session = readJson<Session>(activePath, {
-    sessionId: null,
-    activeProject: null,
-    startTime: null,
-    status: 'inactive'
-  });
+  // Get all active sessions
+  const activeSessions = getActiveSessions();
+
+  // Get the most recently active session as "current"
+  const currentSessionEntry = activeSessions.length > 0
+    ? activeSessions.sort((a, b) =>
+        new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+      )[0]
+    : null;
+
+  const currentSession = currentSessionEntry ? getSession(currentSessionEntry.id) : null;
 
   const locksData = readJson<{ locks: Lock[] }>(locksPath, { locks: [] });
   const projectsData = readJson<{ projects: Project[] }>(projectsPath, { projects: [] });
 
   // Filter active locks
   const activeLocks = locksData.locks.filter(l => l.status === 'active');
-  const myLocks = session.sessionId
-    ? activeLocks.filter(l => l.ownerId === session.sessionId)
+
+  // Get locks for current session
+  const currentSessionLocks = currentSession
+    ? activeLocks.filter(l => l.ownerId === currentSession.id)
     : [];
 
-  // Find active project details
-  const activeProject = session.activeProject
-    ? projectsData.projects.find(p => p.id === session.activeProject || p.name === session.activeProject)
-    : null;
+  // Build session summaries
+  const sessionSummaries = activeSessions.map(s => {
+    const sessionData = getSession(s.id);
+    return {
+      id: s.id,
+      projectName: s.projectName,
+      taskId: s.taskId,
+      worktreePath: s.worktreePath,
+      status: s.status,
+      lastActivity: s.lastActivity,
+      lockCount: sessionData?.locks.length || 0,
+      isCurrent: s.id === currentSessionEntry?.id
+    };
+  });
 
   return {
-    session: {
-      id: session.sessionId,
-      status: session.status,
-      startTime: session.startTime,
-      activeProject: activeProject
-        ? {
-            id: activeProject.id,
-            name: activeProject.name,
-            path: activeProject.path
-          }
-        : null
-    },
+    currentSession: currentSession
+      ? {
+          id: currentSession.id,
+          status: currentSession.status,
+          project: currentSession.project,
+          currentTask: currentSession.currentTask,
+          worktree: currentSession.worktree,
+          locks: currentSession.locks,
+          prUrl: currentSession.prUrl,
+          createdAt: currentSession.createdAt,
+          lastActivity: currentSession.lastActivity
+        }
+      : null,
+    allSessions: sessionSummaries,
     locks: {
       total: activeLocks.length,
-      owned: myLocks.length,
-      items: myLocks.map(l => ({
+      ownedByCurrent: currentSessionLocks.length,
+      items: currentSessionLocks.map(l => ({
         lockId: l.lockId,
         projectId: l.projectId,
         taskId: l.taskId,

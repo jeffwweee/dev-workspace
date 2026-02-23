@@ -25,13 +25,99 @@ function formatOutput(data: unknown, useJson: boolean = false): string {
   return JSON.stringify(data, null, 2);
 }
 
-// init - Initialize session
+// init - Initialize session (with picker)
 program
   .command('init')
-  .description('Create a new session and initialize state files')
+  .description('Initialize or resume a session (shows picker if sessions exist)')
+  .option('--new', 'Create a new session (skip picker)')
+  .option('--resume <session_id>', 'Resume a specific session by ID')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
-    const result = await commands.init();
+    const result = await commands.init({
+      new: options.new,
+      resume: options.resume
+    });
+    console.log(formatOutput(result, options.json));
+  });
+
+// new - Create new session explicitly
+program
+  .command('new')
+  .description('Create a new session (skip picker)')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const result = await commands.newSession();
+    console.log(formatOutput(result, options.json));
+  });
+
+// resume - Resume a session
+program
+  .command('resume')
+  .description('Resume an existing session')
+  .argument('<session_id>', 'Session ID to resume')
+  .option('--json', 'Output as JSON')
+  .action(async (sessionId, options) => {
+    const result = await commands.resumeSession(sessionId);
+    console.log(formatOutput(result, options.json));
+  });
+
+// sessions - List all sessions
+program
+  .command('sessions')
+  .description('List all sessions')
+  .option('--all', 'Show ended sessions too')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const result = await commands.listSessionsCmd(options.all);
+    console.log(formatOutput(result, options.json));
+  });
+
+// end - End current session
+program
+  .command('end')
+  .description('End the current session')
+  .argument('[session_id]', 'Session ID to end (optional, uses current if not specified)')
+  .option('--force', 'Force end even with active locks')
+  .option('--json', 'Output as JSON')
+  .action(async (sessionId, options) => {
+    const result = await commands.endSession(sessionId, options.force);
+    console.log(formatOutput(result, options.json));
+  });
+
+// worktree - Manage git worktrees
+program
+  .command('worktree')
+  .description('Manage git worktrees for tasks')
+  .argument('[subcommand]', 'Subcommand: list, create, remove')
+  .argument('[args...]', 'Additional arguments')
+  .option('--project <name>', 'Project name (for create/remove)')
+  .option('--task <id>', 'Task ID (for create/remove)')
+  .option('--branch <name>', 'Branch name (for create)')
+  .option('--force', 'Force removal even with uncommitted changes')
+  .option('--json', 'Output as JSON')
+  .action(async (subcommand, args, options) => {
+    let result;
+    switch (subcommand || 'list') {
+      case 'list':
+        result = await commands.worktreeList(options.project);
+        break;
+      case 'create':
+        if (!options.project || !options.task) {
+          result = { success: false, error: 'DW_MISSING_ARGS', message: 'worktree create requires --project and --task' };
+        } else {
+          result = await commands.worktreeCreate(options.project, options.task, options.branch);
+        }
+        break;
+      case 'remove':
+        if (!options.project || !options.task) {
+          result = { success: false, error: 'DW_MISSING_ARGS', message: 'worktree remove requires --project and --task' };
+        } else {
+          result = await commands.worktreeRemove(options.project, options.task, options.force);
+        }
+        break;
+      default:
+        result = { success: false, error: 'DW_UNKNOWN_SUBCOMMAND', message: `Unknown subcommand: ${subcommand}. Use: list, create, remove` };
+    }
     console.log(formatOutput(result, options.json));
   });
 

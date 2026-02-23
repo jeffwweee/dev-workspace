@@ -51,6 +51,8 @@ export interface SessionData {
   worktree: SessionWorktree | null;
   locks: string[];
   prUrl: string | null;
+  tgSessionId: string | null;  // Telegram bot session (e.g., SESSION_X01)
+  tmuxSession: string | null;  // Tmux session name
   status: 'active' | 'ended';
   createdAt: string;
   lastActivity: string;
@@ -63,6 +65,8 @@ export interface SessionRegistryEntry {
   projectName: string | null;
   taskId: string | null;
   worktreePath: string | null;
+  tgSessionId: string | null;
+  tmuxSession: string | null;
   status: 'active' | 'ended';
   createdAt: string;
   lastActivity: string;
@@ -214,7 +218,10 @@ export function getSession(sessionId: string): SessionData | null {
 }
 
 // Create a new session
-export function createSession(sessionId?: string): SessionData {
+export function createSession(sessionId?: string, options?: {
+  tgSessionId?: string;
+  tmuxSession?: string;
+}): SessionData {
   ensureSessionsDir();
 
   const id = sessionId || generateId('sess');
@@ -227,6 +234,8 @@ export function createSession(sessionId?: string): SessionData {
     worktree: null,
     locks: [],
     prUrl: null,
+    tgSessionId: options?.tgSessionId || null,
+    tmuxSession: options?.tmuxSession || null,
     status: 'active',
     createdAt: now,
     lastActivity: now
@@ -243,6 +252,8 @@ export function createSession(sessionId?: string): SessionData {
     projectName: null,
     taskId: null,
     worktreePath: null,
+    tgSessionId: options?.tgSessionId || null,
+    tmuxSession: options?.tmuxSession || null,
     status: 'active',
     createdAt: now,
     lastActivity: now
@@ -255,7 +266,7 @@ export function createSession(sessionId?: string): SessionData {
     timestamp: now,
     event: 'session_created',
     sessionId: id,
-    data: { action: 'create' }
+    data: { action: 'create', tgSessionId: options?.tgSessionId, tmuxSession: options?.tmuxSession }
   });
 
   return session;
@@ -285,6 +296,8 @@ export function updateSession(sessionId: string, updates: Partial<SessionData>):
       projectName: updatedSession.project?.name || null,
       taskId: updatedSession.currentTask,
       worktreePath: updatedSession.worktree?.path || null,
+      tgSessionId: updatedSession.tgSessionId,
+      tmuxSession: updatedSession.tmuxSession,
       status: updatedSession.status,
       lastActivity: updatedSession.lastActivity
     };
@@ -361,4 +374,94 @@ export function isSessionOld(session: SessionRegistryEntry, ttlHours: number = 2
 // Get active sessions
 export function getActiveSessions(): SessionRegistryEntry[] {
   return listSessions().filter(s => s.status === 'active');
+}
+
+// ============================================
+// Tmux & Telegram Session Detection
+// ============================================
+
+export interface TgSessionConfig {
+  name: string;
+  bot_token_env: string;
+  bot_username: string;
+  chat_ids: number[];
+  allowed_users: number[];
+  tmux_session: string;
+  tmux_wake_command: string;
+  purpose: string;
+}
+
+export interface TgSessionsConfig {
+  sessions: Record<string, TgSessionConfig>;
+  default: string;
+}
+
+/**
+ * Get current tmux session name
+ */
+export function getTmuxSessionName(): string | null {
+  // Check TMUX env var first
+  if (!process.env.TMUX) return null;
+
+  try {
+    const { execSync } = require('child_process');
+    const sessionName = execSync('tmux display-message -p "#S"', {
+      encoding: 'utf-8'
+    }).trim();
+    return sessionName || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Load Telegram sessions config
+ */
+export function loadTgSessionsConfig(): TgSessionsConfig | null {
+  const configPath = path.join(WORKSPACE_ROOT, 'config', 'sessions.json');
+  return readJson<TgSessionsConfig | null>(configPath, null);
+}
+
+/**
+ * Find TG session config by tmux session name
+ */
+export function findTgSessionByTmux(tmuxSession: string): { id: string; config: TgSessionConfig } | null {
+  const config = loadTgSessionsConfig();
+  if (!config) return null;
+
+  for (const [id, sessionConfig] of Object.entries(config.sessions)) {
+    if (sessionConfig.tmux_session === tmuxSession) {
+      return { id, config: sessionConfig };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect session context from environment
+ * Returns TG session ID and config if in a mapped tmux session
+ */
+export function detectSessionContext(): {
+  tmuxSession: string | null;
+  tgSessionId: string | null;
+  tgConfig: TgSessionConfig | null;
+} {
+  const tmuxSession = getTmuxSessionName();
+
+  if (!tmuxSession) {
+    return { tmuxSession: null, tgSessionId: null, tgConfig: null };
+  }
+
+  const match = findTgSessionByTmux(tmuxSession);
+
+  if (!match) {
+    return { tmuxSession, tgSessionId: null, tgConfig: null };
+  }
+
+  return {
+    tmuxSession,
+    tgSessionId: match.id,
+    tgConfig: match.config
+  };
 }

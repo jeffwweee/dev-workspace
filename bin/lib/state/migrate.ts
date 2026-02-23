@@ -72,6 +72,8 @@ export function migrateToV2(): { success: boolean; message: string; sessionIds?:
       worktree: null,
       locks: [],
       prUrl: null,
+      tgSessionId: null,
+      tmuxSession: null,
       status: 'active',
       createdAt: oldSession.startTime || now,
       lastActivity: now
@@ -87,6 +89,8 @@ export function migrateToV2(): { success: boolean; message: string; sessionIds?:
       projectName: null,
       taskId: null,
       worktreePath: null,
+      tgSessionId: null,
+      tmuxSession: null,
       status: 'active',
       createdAt: oldSession.startTime || now,
       lastActivity: now

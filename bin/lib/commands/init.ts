@@ -4,6 +4,7 @@ import {
   getSession,
   updateSession,
   isSessionOld,
+  detectSessionContext,
   type SessionRegistryEntry,
   type SessionData
 } from '../state/manager.js';
@@ -14,6 +15,11 @@ export interface InitResult {
   action: 'created' | 'resumed' | 'picker';
   session?: SessionData;
   sessions?: SessionPickerEntry[];
+  tgSession?: {
+    id: string;
+    botUsername: string;
+    purpose: string;
+  };
   error?: string;
   message?: string;
 }
@@ -22,6 +28,8 @@ export interface SessionPickerEntry {
   id: string;
   projectName: string | null;
   taskId: string | null;
+  tgSessionId: string | null;
+  tmuxSession: string | null;
   status: string;
   lastActivity: string;
   isOld: boolean;
@@ -52,9 +60,9 @@ function formatAge(lastActivity: string): { text: string; hours: number } {
  * Initialize or resume a session
  *
  * Modes:
- * - No sessions exist: create new
+ * - No sessions exist: create new (auto-detect tmux/tg session)
  * - Sessions exist but no selection: return picker data
- * - --new flag: create new session
+ * - --new flag: create new session (auto-detect tmux/tg session)
  * - --resume <id>: resume specific session
  */
 export async function init(options: {
@@ -64,10 +72,55 @@ export async function init(options: {
   // Ensure we're on v2 format
   ensureV2();
 
+  // Detect tmux/telegram session context
+  const context = detectSessionContext();
+
   const sessions = listSessions().filter(s => s.status === 'active');
 
   // Mode 1: Explicit new session
   if (options.new) {
+    // If in mapped tmux session, use tg session ID
+    if (context.tgSessionId && context.tgConfig) {
+      // Check if this tg session already exists
+      const existingSession = sessions.find(s => s.tgSessionId === context.tgSessionId);
+      if (existingSession) {
+        // Resume it instead
+        const session = getSession(existingSession.id);
+        if (session) {
+          const updated = updateSession(existingSession.id, { status: 'active' });
+          return {
+            success: true,
+            action: 'resumed',
+            session: updated || undefined,
+            tgSession: {
+              id: context.tgSessionId,
+              botUsername: context.tgConfig.bot_username,
+              purpose: context.tgConfig.purpose
+            },
+            message: `Resumed session ${existingSession.id} (TG: ${context.tgSessionId})`
+          };
+        }
+      }
+
+      // Create new with tg session ID
+      const session = createSession(context.tgSessionId, {
+        tgSessionId: context.tgSessionId,
+        tmuxSession: context.tmuxSession || undefined
+      });
+      return {
+        success: true,
+        action: 'created',
+        session,
+        tgSession: {
+          id: context.tgSessionId,
+          botUsername: context.tgConfig.bot_username,
+          purpose: context.tgConfig.purpose
+        },
+        message: `Created session ${session.id} (TG: ${context.tgSessionId})`
+      };
+    }
+
+    // Not in mapped tmux - create with generated ID
     const session = createSession();
     return {
       success: true,
@@ -92,16 +145,44 @@ export async function init(options: {
     // Update activity
     const updated = updateSession(options.resume, { status: 'active' });
 
+    // Get tg session info if available
+    const tgSession = session.tgSessionId && context.tgConfig ? {
+      id: session.tgSessionId,
+      botUsername: context.tgConfig.bot_username,
+      purpose: context.tgConfig.purpose
+    } : undefined;
+
     return {
       success: true,
       action: 'resumed',
       session: updated || undefined,
+      tgSession,
       message: `Resumed session ${options.resume}`
     };
   }
 
-  // Mode 3: No sessions exist - create new
+  // Mode 3: No sessions exist - create new (with auto-detection)
   if (sessions.length === 0) {
+    // If in mapped tmux session, use tg session ID
+    if (context.tgSessionId && context.tgConfig) {
+      const session = createSession(context.tgSessionId, {
+        tgSessionId: context.tgSessionId,
+        tmuxSession: context.tmuxSession || undefined
+      });
+      return {
+        success: true,
+        action: 'created',
+        session,
+        tgSession: {
+          id: context.tgSessionId,
+          botUsername: context.tgConfig.bot_username,
+          purpose: context.tgConfig.purpose
+        },
+        message: `Created session ${session.id} (TG: ${context.tgSessionId})`
+      };
+    }
+
+    // Not in mapped tmux - create with generated ID
     const session = createSession();
     return {
       success: true,
@@ -118,6 +199,8 @@ export async function init(options: {
       id: s.id,
       projectName: s.projectName,
       taskId: s.taskId,
+      tgSessionId: s.tgSessionId,
+      tmuxSession: s.tmuxSession,
       status: s.status,
       lastActivity: s.lastActivity,
       isOld: isSessionOld(s),
@@ -125,11 +208,21 @@ export async function init(options: {
     };
   });
 
+  // Include context info if in mapped tmux
+  const tgSession = context.tgSessionId && context.tgConfig ? {
+    id: context.tgSessionId,
+    botUsername: context.tgConfig.bot_username,
+    purpose: context.tgConfig.purpose
+  } : undefined;
+
   return {
     success: true,
     action: 'picker',
     sessions: pickerEntries,
-    message: 'Multiple sessions exist - select one or create new'
+    tgSession,
+    message: tgSession
+      ? `In tmux session mapped to ${tgSession.id}. Multiple sessions exist - select one or create new.`
+      : 'Multiple sessions exist - select one or create new'
   };
 }
 

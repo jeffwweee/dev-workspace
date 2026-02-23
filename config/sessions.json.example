@@ -1,0 +1,14 @@
+{
+  "$schema": "./sessions.schema.json",
+  "sessions": {
+    "SESSION_EXAMPLE": {
+      "bot_token_env": "BOT_TOKEN_EXAMPLE",
+      "bot_username": "example_bot",
+      "chat_ids": [123456789, -1001234567890],
+      "allowed_users": [123456789],
+      "tmux_session": "example-session",
+      "tmux_wake_command": "/mcp tg-agent:telegram_reply"
+    }
+  },
+  "default": "SESSION_EXAMPLE"
+}

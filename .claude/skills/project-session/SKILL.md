@@ -12,8 +12,10 @@ Main orchestrator skill for multi-session Claude Code workflows. Ensures safe, t
 ## Prerequisites
 
 Before using this skill:
-1. Run `node bin/dw.js init` to create or resume a session
+1. A session should exist (run `node bin/dw.js init` if needed)
 2. Run `node bin/dw.js add <project> --path <path>` to register the project (if not already registered)
+
+**Note:** If no session exists, this skill will automatically call `dw init --new` to create one.
 
 ## Usage Modes
 
@@ -24,11 +26,13 @@ Use this mode to choose which project to work on:
 ```
 
 When this flag is provided:
-1. List all available sessions using `node bin/dw.js sessions`
-2. Ask the user to resume an existing session or create new
-3. If new, list projects and ask which to work on
-4. Show session status and available tasks
-5. Ask what the user wants to do next
+1. Check if a session exists using `node bin/dw.js status`
+2. If no session, run `node bin/dw.js init --new` to create one
+3. List all available sessions using `node bin/dw.js sessions`
+4. Ask the user to resume an existing session or create new
+5. If new, list projects and ask which to work on
+6. Show session status and available tasks
+7. Ask what the user wants to do next
 
 ### Default Mode (Auto-Resume)
 Without flags, continue with the most recently active session.

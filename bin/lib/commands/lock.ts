@@ -317,6 +317,12 @@ export async function heartbeat(options: {
     };
   }
 
+  // Update session activity
+  const session = getSession(sessionId);
+  if (session) {
+    updateSession(sessionId, {}); // This updates lastActivity
+  }
+
   const ownerId = options.owner || sessionId;
   const locksData = readJson<{ locks: Lock[] }>(locksPath, { locks: [] });
 
@@ -350,7 +356,8 @@ export async function heartbeat(options: {
   return {
     success: true,
     refreshed: refreshedCount,
-    message: `Refreshed ${refreshedCount} lock(s)`
+    sessionActivityUpdated: !!session,
+    message: `Refreshed ${refreshedCount} lock(s)${session ? ', session activity updated' : ''}`
   };
 }
 

@@ -3,6 +3,7 @@ import {
   getSession,
   deleteSession,
   updateSession,
+  updateLastActivity,
   isSessionOld,
   type SessionRegistryEntry,
   type SessionData
@@ -101,5 +102,50 @@ export async function endSession(
     success: true,
     message: `Session ${sessionId} ended`,
     session
+  };
+}
+
+/**
+ * Update session activity (heartbeat)
+ */
+export async function sessionHeartbeat(
+  sessionId: string | undefined
+): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  session?: SessionData;
+}> {
+  if (!sessionId) {
+    // Find the most recently active session
+    const sessions = listSessions().filter(s => s.status === 'active');
+    if (sessions.length === 0) {
+      return {
+        success: false,
+        error: 'DW_NO_SESSION',
+        message: 'No active session found'
+      };
+    }
+    sessions.sort((a, b) =>
+      new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+    );
+    sessionId = sessions[0].id;
+  }
+
+  const session = getSession(sessionId);
+  if (!session) {
+    return {
+      success: false,
+      error: 'DW_SESSION_NOT_FOUND',
+      message: `Session ${sessionId} not found`
+    };
+  }
+
+  updateLastActivity(sessionId);
+
+  return {
+    success: true,
+    message: `Session ${sessionId} activity updated`,
+    session: getSession(sessionId) || undefined
   };
 }

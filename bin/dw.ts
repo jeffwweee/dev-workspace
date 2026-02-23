@@ -84,6 +84,17 @@ program
     console.log(formatOutput(result, options.json));
   });
 
+// activity - Update session activity
+program
+  .command('activity')
+  .description('Update session activity timestamp (heartbeat)')
+  .argument('[session_id]', 'Session ID (optional, uses most recent if not specified)')
+  .option('--json', 'Output as JSON')
+  .action(async (sessionId, options) => {
+    const result = await commands.sessionHeartbeat(sessionId);
+    console.log(formatOutput(result, options.json));
+  });
+
 // worktree - Manage git worktrees
 program
   .command('worktree')
@@ -202,6 +213,45 @@ program
   .option('--json', 'Output as JSON')
   .action(async (options) => {
     const result = await commands.cleanupLocks(options);
+    console.log(formatOutput(result, options.json));
+  });
+
+// cleanup - Full cleanup (sessions, locks, orphaned worktrees)
+program
+  .command('cleanup')
+  .description('Clean up expired sessions, locks, and find orphaned worktrees')
+  .option('--session-ttl <hours>', 'Session TTL in hours (default: 24)', '24')
+  .option('--prune', 'Also remove orphaned worktrees')
+  .option('--dry-run', 'Show what would be cleaned without making changes')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const result = await commands.cleanup({
+      sessionTtl: parseInt(options.sessionTtl, 10),
+      dryRun: options.dryRun
+    });
+
+    // If prune flag is set, also prune orphaned worktrees
+    if (options.prune && result.worktrees.orphaned.length > 0) {
+      const pruneResult = await commands.pruneWorktrees({
+        dryRun: options.dryRun
+      });
+      const extendedResult = result as unknown as Record<string, unknown>;
+      extendedResult.pruned = pruneResult;
+    }
+
+    console.log(formatOutput(result, options.json));
+  });
+
+// prune-worktrees - Remove orphaned worktrees
+program
+  .command('prune-worktrees')
+  .description('Remove worktrees that have no active session')
+  .option('--dry-run', 'Show what would be removed without making changes')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const result = await commands.pruneWorktrees({
+      dryRun: options.dryRun
+    });
     console.log(formatOutput(result, options.json));
   });
 

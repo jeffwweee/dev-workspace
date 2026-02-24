@@ -1,5 +1,19 @@
 {
-  "projects": [],
+  "projects": [
+    {
+      "id": "PROJ-MM083TFMD7FAY4",
+      "name": "tg-agent",
+      "path": "/home/jeffwweee/jef/dev-workspace/projects/tg-agent",
+      "addedAt": "2026-02-24T06:27:16.546Z"
+    },
+    {
+      "id": "PROJ-TGBOTS001",
+      "name": "tg-bots",
+      "path": "/home/jeffwweee/jef/dev-workspace/modules/bots",
+      "remote": "https://github.com/jeffwweee/tg-bots.git",
+      "addedAt": "2026-02-24T10:00:00.000Z"
+    }
+  ],
   "version": "1.0.0",
-  "lastUpdated": "2026-02-21T00:00:00.000Z"
+  "lastUpdated": "2026-02-24T10:00:00.000Z"
 }

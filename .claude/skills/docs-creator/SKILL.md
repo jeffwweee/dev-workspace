@@ -16,7 +16,7 @@ Creates and updates documentation files including progress.md, PROJECT_CONTEXT.m
 Create PROJECT_CONTEXT.md with project overview, architecture, and setup instructions:
 
 ```bash
-/skill docs-creator --create-context
+/docs-creator --create-context
 ```
 
 ### Update Progress
@@ -24,7 +24,7 @@ Create PROJECT_CONTEXT.md with project overview, architecture, and setup instruc
 Update progress.md with latest session work, decisions, and outcomes:
 
 ```bash
-/skill docs-creator --update-progress --task TASK-001 --summary "Implemented feature X"
+/docs-creator --update-progress --task TASK-001 --summary "Implemented feature X"
 ```
 
 ### Document Decision
@@ -32,7 +32,7 @@ Update progress.md with latest session work, decisions, and outcomes:
 Record an architectural or technical decision:
 
 ```bash
-/skill docs-creator --document-decision "Use OAuth2 for authentication" --reason "Security requirements"
+/docs-creator --document-decision "Use OAuth2 for authentication" --reason "Security requirements"
 ```
 
 ### Create README
@@ -40,7 +40,7 @@ Record an architectural or technical decision:
 Create or update README.md with project information:
 
 ```bash
-/skill docs-creator --create-readme
+/docs-creator --create-readme
 ```
 
 ## progress.md Template
@@ -132,7 +132,7 @@ See [error-handling.md](../references/error-handling.md) for patterns.
 ## Example
 
 ```
-User: /skill docs-creator --update-progress --task TASK-001 --summary "Implemented user login"
+User: /docs-creator --update-progress --task TASK-001 --summary "Implemented user login"
 
 Status: SUCCESS
 

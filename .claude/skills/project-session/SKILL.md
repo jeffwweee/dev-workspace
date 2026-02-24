@@ -22,7 +22,7 @@ Before using this skill:
 ### `--select` (Project Selection Mode)
 Use this mode to choose which project to work on:
 ```
-/skill project-session --select
+/project-session --select
 ```
 
 When this flag is provided:
@@ -70,11 +70,57 @@ After claiming a task, delegate to appropriate skills:
 
 | Skill | Use For |
 |-------|---------|
+| `brainstorming` | Design exploration before implementation |
+| `writing-plans` | Create implementation plans from designs |
+| `executing-plans` | Execute plans with batch checkpoints |
+| `subagent-driven-development` | Execute plans with fresh subagents per task |
+| `test-driven-development` | TDD for features/bugfixes |
+| `systematic-debugging` | Root cause investigation before fixes |
+| `verification-before-completion` | Evidence before success claims |
+| `finishing-a-development-branch` | Merge/PR/cleanup after completion |
 | `project-planner` | Task management, tasks.json updates |
 | `docs-creator` | progress.md, PROJECT_CONTEXT.md updates |
 | `git-agent` | Git operations, commits, branching |
 | `code-reviewer` | Code review, lint checks |
 | `tester` | Running tests, verification, smoke tests |
+
+### 3a. Skill-to-Skill Workflows
+
+Skills can invoke each other directly. Common workflow chains:
+
+**Design → Plan → Execute:**
+```
+brainstorming → writing-plans → executing-plans OR subagent-driven-development
+```
+
+**Implementation with quality gates:**
+```
+test-driven-development → verification-before-completion → finishing-a-development-branch
+```
+
+**Debugging workflow:**
+```
+systematic-debugging → test-driven-development → verification-before-completion
+```
+
+**Full feature workflow:**
+```
+brainstorming
+    ↓
+writing-plans
+    ↓
+subagent-driven-development (uses test-driven-development internally)
+    ↓
+verification-before-completion
+    ↓
+docs-creator (update progress.md)
+    ↓
+finishing-a-development-branch
+    ↓
+release locks
+```
+
+When a skill completes, it may recommend the next skill. Follow the recommendation unless the user specifies otherwise.
 
 ### 4. Completion Gate Verification
 
@@ -171,7 +217,7 @@ node bin/dw.js sessions
 ## Example: Task Completion
 
 ```
-User: /skill project-session --select
+User: /project-session --select
 
 1. Show sessions:
    node bin/dw.js sessions
@@ -186,8 +232,8 @@ User: /skill project-session --select
    cd ~/worktrees/tg-agent/V2-016
 
 5. Delegate implementation:
-   /skill tester --verify
-   /skill docs-creator --update-progress
+   /tester --verify
+   /docs-creator --update-progress
 
 6. Completion:
    node bin/dw.js record-result --task V2-016 --status passed --pr https://github.com/.../pull/42
@@ -212,4 +258,53 @@ Worktree:
 
 Next recommended:
 - Create PR session for merge management
+```
+
+## Example: Full Skill-to-Skill Workflow
+
+```
+User: I want to add a retry mechanism to the API client
+
+# Step 1: Start with brainstorming (design)
+/brainstorming
+  -> Explores requirements, proposes approaches
+  -> Presents design for approval
+  -> Writes design doc to docs/plans/2026-02-24-retry-design.md
+  -> Recommends: writing-plans
+
+# Step 2: Create implementation plan
+/writing-plans
+  -> Reads design doc
+  -> Creates bite-sized tasks with exact file paths and code
+  -> Saves to docs/plans/2026-02-24-retry-implementation.md
+  -> Offers: executing-plans OR subagent-driven-development
+
+# Step 3: Execute the plan (user chooses subagent-driven)
+/subagent-driven-development
+  -> Dispatches implementer subagent per task
+  -> Each task follows test-driven-development
+  -> Two-stage review per task (spec + quality)
+  -> Recommends: verification-before-completion
+
+# Step 4: Verify completion
+/verification-before-completion
+  -> Runs test suite, shows output
+  -> Confirms all tests pass
+  -> Recommends: docs-creator
+
+# Step 5: Update documentation
+/docs-creator --update-progress
+  -> Updates progress.md with what was done
+  -> Recommends: finishing-a-development-branch
+
+# Step 6: Finish branch
+/finishing-a-development-branch
+  -> Verifies tests pass
+  -> Offers: merge, PR, keep, or discard
+  -> User chooses PR
+  -> Creates PR via gh CLI
+  -> Recommends: release locks
+
+# Step 7: Clean up
+node bin/dw.js release --all
 ```

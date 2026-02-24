@@ -16,7 +16,7 @@ Handles all git operations including branching, committing, status checks, and r
 Checkout existing branch or create new branch:
 
 ```bash
-/skill git-agent --checkout-branch --create feature/login
+/git-agent --checkout-branch --create feature/login
 ```
 
 ### Status Check
@@ -24,7 +24,7 @@ Checkout existing branch or create new branch:
 Show git status including staged, unstaged, and untracked files:
 
 ```bash
-/skill git-agent --status
+/git-agent --status
 ```
 
 ### Commit Changes
@@ -32,7 +32,7 @@ Show git status including staged, unstaged, and untracked files:
 Commit staged changes with generated or provided message:
 
 ```bash
-/skill git-agent --commit --message "feat: Add user authentication"
+/git-agent --commit --message "feat: Add user authentication"
 ```
 
 ### Create Checkpoint
@@ -40,7 +40,7 @@ Commit staged changes with generated or provided message:
 Create a checkpoint commit for current state:
 
 ```bash
-/skill git-agent --checkpoint
+/git-agent --checkpoint
 ```
 
 ### Show Diff
@@ -48,7 +48,7 @@ Create a checkpoint commit for current state:
 Show diff of changes (staged or unstaged):
 
 ```bash
-/skill git-agent --diff --staged
+/git-agent --diff --staged
 ```
 
 ### Merge Branch
@@ -56,7 +56,7 @@ Show diff of changes (staged or unstaged):
 Merge specified branch into current branch:
 
 ```bash
-/skill git-agent --merge feature/login
+/git-agent --merge feature/login
 ```
 
 ## Commit Message Format
@@ -105,7 +105,7 @@ See [error-handling.md](../references/error-handling.md) for patterns.
 ## Example
 
 ```
-User: /skill git-agent --commit --message "feat: Add user login"
+User: /git-agent --commit --message "feat: Add user login"
 
 Status: SUCCESS
 

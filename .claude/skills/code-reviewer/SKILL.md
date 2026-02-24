@@ -16,7 +16,7 @@ Performs code review, lint checks, and quality assessments on changed files.
 Review specified files for code quality, best practices, and potential issues:
 
 ```bash
-/skill code-reviewer --review src/auth.ts,src/utils.ts
+/code-reviewer --review src/auth.ts,src/utils.ts
 ```
 
 ### Run Linter
@@ -24,7 +24,7 @@ Review specified files for code quality, best practices, and potential issues:
 Run configured linter and report issues:
 
 ```bash
-/skill code-reviewer --lint
+/code-reviewer --lint
 ```
 
 ### Security Scan
@@ -32,7 +32,7 @@ Run configured linter and report issues:
 Check for security vulnerabilities in code:
 
 ```bash
-/skill code-reviewer --security-scan
+/code-reviewer --security-scan
 ```
 
 ### Compare Branches
@@ -40,7 +40,7 @@ Check for security vulnerabilities in code:
 Compare current branch with specified branch:
 
 ```bash
-/skill code-reviewer --compare main
+/code-reviewer --compare main
 ```
 
 ### Review Checklist
@@ -48,7 +48,7 @@ Compare current branch with specified branch:
 Run through standard review checklist:
 
 ```bash
-/skill code-reviewer --checklist
+/code-reviewer --checklist
 ```
 
 ## Review Checklist
@@ -132,7 +132,7 @@ See [error-handling.md](../references/error-handling.md) for patterns.
 ## Example
 
 ```
-User: /skill code-reviewer --review src/auth.ts
+User: /code-reviewer --review src/auth.ts
 
 Status: SUCCESS
 

@@ -1,18 +1,22 @@
-import { getStatePath, generateId, atomicWrite, readJson, auditLog, isLockExpired, extendLockTTL } from '../state/manager.js';
-async function getCurrentSession() {
-    const activePath = getStatePath('active.json');
-    const session = await readJson(activePath, {
-        sessionId: null,
-        activeProject: null,
-        startTime: null,
-        status: 'inactive'
-    });
-    return session.sessionId;
+import { getStatePath, getRegistryPath, generateId, atomicWrite, readJson, auditLog, isLockExpired, extendLockTTL, getSession, updateSession, getActiveSessions } from '../state/manager.js';
+import { createWorktree } from './worktree.js';
+/**
+ * Get current session ID from active sessions
+ * For now, returns the most recently active session
+ */
+function getCurrentSessionId() {
+    const sessions = getActiveSessions();
+    if (sessions.length === 0)
+        return null;
+    // Sort by lastActivity descending and return the most recent
+    sessions.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+    return sessions[0].id;
 }
 export async function claim(options) {
     const locksPath = getStatePath('locks.json');
-    const activePath = getStatePath('active.json');
-    const sessionId = await getCurrentSession();
+    const projectsPath = getRegistryPath('projects.json');
+    // Get session
+    const sessionId = options.session || getCurrentSessionId();
     if (!sessionId) {
         return {
             success: false,
@@ -20,9 +24,27 @@ export async function claim(options) {
             message: 'No active session. Run "dw init" first.'
         };
     }
+    const session = getSession(sessionId);
+    if (!session) {
+        return {
+            success: false,
+            error: 'DW_SESSION_NOT_FOUND',
+            message: `Session ${sessionId} not found`
+        };
+    }
     const ownerId = options.owner || sessionId;
     const ttl = parseInt(options.ttl || '120', 10);
     const locksData = readJson(locksPath, { locks: [] });
+    const projectsData = readJson(projectsPath, { projects: [] });
+    // Determine project
+    let projectId = options.project;
+    let project;
+    if (!projectId && session.project) {
+        projectId = session.project.id;
+    }
+    if (projectId) {
+        project = projectsData.projects.find(p => p.id === projectId || p.name === projectId);
+    }
     // Check for conflicting active locks
     const conflictingLock = locksData.locks.find(l => {
         if (l.status !== 'active')
@@ -47,12 +69,26 @@ export async function claim(options) {
             }
         };
     }
+    // Create worktree if claiming a task and project is known
+    let worktree;
+    if (options.task && project && !options.noWorktree) {
+        try {
+            worktree = createWorktree(project.path, project.name, options.task);
+        }
+        catch (error) {
+            return {
+                success: false,
+                error: 'DW_WORKTREE_FAILED',
+                message: `Failed to create worktree: ${error}`
+            };
+        }
+    }
     // Create new lock
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + ttl);
     const newLock = {
         lockId: generateId('lock'),
-        projectId: options.project,
+        projectId: project?.id || options.project,
         taskId: options.task,
         ownerId,
         acquiredAt: new Date().toISOString(),
@@ -61,17 +97,42 @@ export async function claim(options) {
     };
     locksData.locks.push(newLock);
     atomicWrite(locksPath, locksData);
+    // Update session with lock and worktree info
+    const sessionUpdates = {
+        currentTask: options.task || session.currentTask,
+        locks: [...session.locks, newLock.lockId]
+    };
+    if (project && !session.project) {
+        sessionUpdates.project = {
+            id: project.id,
+            name: project.name,
+            path: project.path
+        };
+    }
+    if (worktree) {
+        sessionUpdates.worktree = {
+            path: worktree.path,
+            branch: worktree.branch,
+            createdAt: new Date().toISOString()
+        };
+    }
+    updateSession(sessionId, sessionUpdates);
     auditLog({
         timestamp: new Date().toISOString(),
         event: 'lock_claimed',
         sessionId,
         data: {
             lockId: newLock.lockId,
-            projectId: options.project,
+            projectId: newLock.projectId,
             taskId: options.task,
-            ttl
+            ttl,
+            worktreePath: worktree?.path
         }
     });
+    const messageParts = ['Lock acquired successfully'];
+    if (worktree) {
+        messageParts.push(`Working in ${worktree.path}`);
+    }
     return {
         success: true,
         lock: {
@@ -80,12 +141,13 @@ export async function claim(options) {
             taskId: newLock.taskId,
             expiresAt: newLock.expiresAt
         },
-        message: 'Lock acquired successfully'
+        worktree,
+        message: messageParts.join('. ')
     };
 }
 export async function release(options) {
     const locksPath = getStatePath('locks.json');
-    const sessionId = await getCurrentSession();
+    const sessionId = options.session || getCurrentSessionId();
     if (!sessionId) {
         return {
             success: false,
@@ -93,14 +155,17 @@ export async function release(options) {
             message: 'No active session. Run "dw init" first.'
         };
     }
+    const session = getSession(sessionId);
     const ownerId = options.owner || sessionId;
     const locksData = readJson(locksPath, { locks: [] });
     let releasedCount = 0;
+    const releasedLockIds = [];
     if (options.all) {
         // Release all locks owned by current session
         for (const lock of locksData.locks) {
             if (lock.ownerId === ownerId && lock.status === 'active') {
                 lock.status = 'released';
+                releasedLockIds.push(lock.lockId);
                 releasedCount++;
             }
         }
@@ -123,6 +188,7 @@ export async function release(options) {
             };
         }
         lock.status = 'released';
+        releasedLockIds.push(lock.lockId);
         releasedCount = 1;
     }
     else {
@@ -134,6 +200,11 @@ export async function release(options) {
     }
     if (releasedCount > 0) {
         atomicWrite(locksPath, locksData);
+        // Update session to remove released locks
+        if (session) {
+            const updatedLocks = session.locks.filter(l => !releasedLockIds.includes(l));
+            updateSession(sessionId, { locks: updatedLocks });
+        }
         auditLog({
             timestamp: new Date().toISOString(),
             event: 'lock_released',
@@ -152,13 +223,18 @@ export async function release(options) {
 }
 export async function heartbeat(options) {
     const locksPath = getStatePath('locks.json');
-    const sessionId = await getCurrentSession();
+    const sessionId = options.session || getCurrentSessionId();
     if (!sessionId) {
         return {
             success: false,
             error: 'DW_NO_SESSION',
             message: 'No active session. Run "dw init" first.'
         };
+    }
+    // Update session activity
+    const session = getSession(sessionId);
+    if (session) {
+        updateSession(sessionId, {}); // This updates lastActivity
     }
     const ownerId = options.owner || sessionId;
     const locksData = readJson(locksPath, { locks: [] });
@@ -191,7 +267,8 @@ export async function heartbeat(options) {
     return {
         success: true,
         refreshed: refreshedCount,
-        message: `Refreshed ${refreshedCount} lock(s)`
+        sessionActivityUpdated: !!session,
+        message: `Refreshed ${refreshedCount} lock(s)${session ? ', session activity updated' : ''}`
     };
 }
 export async function cleanupLocks(options) {

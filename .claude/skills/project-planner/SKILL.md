@@ -16,7 +16,7 @@ Manages task planning, tracking, and updates to tasks.json. Handles task depende
 Create a new task with appropriate priority and dependencies:
 
 ```bash
-/skill project-planner --plan "Task description"
+/project-planner --plan "Task description"
 ```
 
 Output: Creates task in tasks.json with auto-generated ID.
@@ -26,7 +26,7 @@ Output: Creates task in tasks.json with auto-generated ID.
 Update task status in tasks.json:
 
 ```bash
-/skill project-planner --update-task TASK-001 --status completed --passes true
+/project-planner --update-task TASK-001 --status completed --passes true
 ```
 
 See [conventions.md](../references/conventions.md#task-status-values) for status values.
@@ -36,7 +36,7 @@ See [conventions.md](../references/conventions.md#task-status-values) for status
 Show all tasks with status and dependencies:
 
 ```bash
-/skill project-planner --list-tasks
+/project-planner --list-tasks
 ```
 
 ### Add Dependency
@@ -44,7 +44,7 @@ Show all tasks with status and dependencies:
 Create dependency relationship between tasks:
 
 ```bash
-/skill project-planner --add-dependency TASK-002 --depends-on TASK-001
+/project-planner --add-dependency TASK-002 --depends-on TASK-001
 ```
 
 ## Task Schema
@@ -87,7 +87,7 @@ See [error-handling.md](../references/error-handling.md) for patterns.
 ## Example
 
 ```
-User: /skill project-planner --update-task TASK-001 --status completed --passes true
+User: /project-planner --update-task TASK-001 --status completed --passes true
 
 Status: SUCCESS
 
@@ -109,4 +109,39 @@ Evidence:
 
 Next recommended:
 - node bin/dw.js pick-next
+```
+
+## Integration with writing-plans
+
+### Creating Tasks for Implementation
+
+```
+# Step 1: Register the task
+/project-planner --plan "Add retry mechanism to API client"
+# Output: Created TASK-015
+
+# Step 2: Create implementation plan (recommended next step)
+/writing-plans --task TASK-015
+```
+
+### After Task Creation
+
+When a new task is created, recommend:
+
+```
+Next recommended:
+- /writing-plans --task TASK-XXX  (create implementation plan)
+- node bin/dw.js claim --task TASK-XXX  (claim and start work)
+```
+
+### Workflow Chain
+
+```
+project-planner (register task)
+    ↓
+writing-plans --task TASK-XXX (create plan)
+    ↓
+executing-plans --task TASK-XXX (execute plan)
+    ↓
+project-planner --update-task TASK-XXX --status completed (mark done)
 ```

@@ -16,7 +16,7 @@ Stateful Telegram conversation tool for remote Claude Code control. Combines pol
 Check for new Telegram messages:
 
 ```bash
-/skill telegram-reply
+/telegram-reply
 ```
 
 Returns pending messages with context.
@@ -26,7 +26,7 @@ Returns pending messages with context.
 Reply to the last polled messages:
 
 ```bash
-/skill telegram-reply --text "Your message here"
+/telegram-reply --text "Your message here"
 ```
 
 ### With Template
@@ -34,7 +34,7 @@ Reply to the last polled messages:
 Use a predefined template:
 
 ```bash
-/skill telegram-reply --template status-update
+/telegram-reply --template status-update
 ```
 
 ## Templates
@@ -79,7 +79,7 @@ See [return-contract.md](../references/return-contract.md).
 ## Example
 
 ```
-User: /skill telegram-reply
+User: /telegram-reply
 
 Status: SUCCESS
 
@@ -92,11 +92,11 @@ Messages:
 2. "use the new telegram_reply tool" (from user 195061634)
 
 Next recommended:
-- Process messages and reply with /skill telegram-reply --text "..."
+- Process messages and reply with /telegram-reply --text "..."
 ```
 
 ```
-User: /skill telegram-reply --template task-complete --task V2-017
+User: /telegram-reply --template task-complete --task V2-017
 
 Status: SUCCESS
 
@@ -120,7 +120,7 @@ Configure in `config/sessions.json`:
 
 ```json
 {
-  "tmux_wake_command": "/skill telegram-reply"
+  "tmux_wake_command": "/telegram-reply"
 }
 ```
 

@@ -16,7 +16,7 @@ Runs tests, smoke tests, and verification to ensure code works correctly.
 Run test suite (all or specific):
 
 ```bash
-/skill tester --run --suite unit
+/tester --run --suite unit
 ```
 
 **Suites:** `unit`, `integration`, `e2e`, `all`
@@ -26,7 +26,7 @@ Run test suite (all or specific):
 Verify specific feature works as expected:
 
 ```bash
-/skill tester --verify "user login"
+/tester --verify "user login"
 ```
 
 ### Smoke Test
@@ -34,7 +34,7 @@ Verify specific feature works as expected:
 Run quick smoke tests to verify basic functionality:
 
 ```bash
-/skill tester --smoke-test
+/tester --smoke-test
 ```
 
 ### Reproduce Bug
@@ -42,7 +42,7 @@ Run quick smoke tests to verify basic functionality:
 Attempt to reproduce a reported bug:
 
 ```bash
-/skill tester --reproduce "Login fails with invalid credentials"
+/tester --reproduce "Login fails with invalid credentials"
 ```
 
 ### Verify Fix
@@ -50,7 +50,7 @@ Attempt to reproduce a reported bug:
 Verify that a bug fix resolves the issue:
 
 ```bash
-/skill tester --verify-fix "Login now handles invalid credentials"
+/tester --verify-fix "Login now handles invalid credentials"
 ```
 
 ### Coverage Report
@@ -58,7 +58,7 @@ Verify that a bug fix resolves the issue:
 Generate and analyze test coverage:
 
 ```bash
-/skill tester --coverage
+/tester --coverage
 ```
 
 ## Test Categories
@@ -157,7 +157,7 @@ See [error-handling.md](../references/error-handling.md) for patterns.
 ## Example
 
 ```
-User: /skill tester --run
+User: /tester --run
 
 Status: SUCCESS
 

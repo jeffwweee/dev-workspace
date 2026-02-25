@@ -37,6 +37,37 @@ When this flag is provided:
 ### Default Mode (Auto-Resume)
 Without flags, continue with the most recently active session.
 
+## Evolution Integration
+
+At session start, the evolution system loads relevant genes into context:
+
+### Automatic Loading
+
+When a session is initialized:
+1. Query Redis for top genes by GDI score
+2. Match genes to project context (tags, scenarios)
+3. Include matching genes in session context
+4. Initialize session signal list for tracking
+
+### Integration Point
+
+After claiming a task (Step 2 in workflow), the skill should:
+
+```bash
+# Evolution: Load top genes
+node -e "require('./.claude/skills/capability-evolver/scripts/promote.cjs').getTopGenes(5).then(genes => { if(genes.length) console.log('Loaded genes:', genes.map(g => g.name).join(', ')); })" 2>/dev/null || true
+
+# Evolution: Init session signals
+node -e "require('./.claude/skills/capability-evolver/scripts/signals.cjs').initSession(process.env.CLAUDE_SESSION_ID || 'local', {project: '<project-name>'})" 2>/dev/null || true
+```
+
+### Manual Commands
+
+```bash
+/evolve              # Show loaded genes and evolution status
+/evolve --status     # Detailed session evolution state
+```
+
 ## Multi-Session Workflow
 
 ### 1. Session Setup

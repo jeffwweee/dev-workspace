@@ -22,6 +22,47 @@ This skill integrates with dev-workspace session and lock management:
 - Task has been claimed (lock held)
 - Work completed in worktree at `~/worktrees/<project>/<task>/`
 
+## Evolution Integration
+
+At session end, solidify signals into genes:
+
+### Pre-Completion: Solidify Session
+
+Before verifying tests (Step 1), run solidification:
+
+```bash
+# Evolution: Solidify session signals into gene candidates
+node -e "
+const solidify = require('./.claude/skills/capability-evolver/scripts/solidify.cjs');
+const promote = require('./.claude/skills/capability-evolver/scripts/promote.cjs');
+const exportModule = require('./.claude/skills/capability-evolver/scripts/export.cjs');
+
+async function evolve() {
+  const sessionId = process.env.CLAUDE_SESSION_ID || 'local';
+
+  try {
+    // Solidify signals
+    const solidified = await solidify.solidify(sessionId);
+    console.log('Evolution: ' + solidified.message);
+
+    // Promote candidates
+    const promoted = await promote.promoteSessionCandidates(sessionId);
+    console.log('Evolution: ' + promoted.message);
+
+    // Export backup
+    const exported = await exportModule.exportAll();
+    console.log('Evolution: Exported ' + exported.genes.exported + ' genes');
+  } catch (err) {
+    console.log('Evolution: ' + err.message + ' (non-critical)');
+  }
+}
+
+evolve();
+" 2>/dev/null || true
+```
+
+This reports: "Session contributed X new genes"
+
 ## The Process
 
 ### Step 1: Verify Tests

@@ -56,4 +56,36 @@ async function getTopGenes(limit = 10) {
   return genes;
 }
 
-module.exports = { promoteGene, promoteSessionCandidates, getTopGenes };
+async function getRelevantGenes(scenarioTags = [], limit = 10) {
+  const client = await redis.getClient();
+  // Get top genes by GDI (fetch 2x to account for filtering)
+  const geneIds = await client.zrevrange(redis.keys.genesRegistry(), 0, limit * 2 - 1, 'WITHSCORES');
+  const genes = [];
+
+  for (let i = 0; i < geneIds.length; i += 2) {
+    const geneId = geneIds[i];
+    const score = parseFloat(geneIds[i + 1]);
+    const geneData = await client.hgetall(redis.keys.gene(geneId));
+    const metadata = await client.hgetall(redis.keys.geneMetadata(geneId));
+
+    // Check if gene matches any scenario tag
+    const geneTags = (geneData.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+    // Match: scenarioTags empty (match all) OR any tag partially matches
+    const matches = scenarioTags.length === 0 ||
+      geneTags.some(gt => scenarioTags.some(st =>
+        gt.toLowerCase().includes(st.toLowerCase()) ||
+        st.toLowerCase().includes(gt.toLowerCase())
+      )) ||
+      // Also check gene name for partial match
+      scenarioTags.some(st => (geneData.name || '').toLowerCase().includes(st.toLowerCase()));
+
+    if (matches) {
+      genes.push({ id: geneId, ...geneData, metadata, gdiScore: score });
+      if (genes.length >= limit) break;
+    }
+  }
+  return genes;
+}
+
+module.exports = { promoteGene, promoteSessionCandidates, getTopGenes, getRelevantGenes };

@@ -54,6 +54,30 @@ Use skills for structured workflows:
 - `/skill code-reviewer` - Review code
 - `/skill tester` - Run tests
 
+## Evolution System
+
+The workspace evolves through sessions using the GEP (Genome Evolution Protocol).
+
+### CLI Commands
+
+```bash
+node bin/dw.js evolve status     # Show registry status
+node bin/dw.js evolve solidify   # Force solidify session
+node bin/dw.js evolve export     # Backup to file system
+node bin/dw.js evolve publish --gene <id>  # Mark publishable
+```
+
+### How It Works
+
+1. **Session Start**: `project-session` loads relevant genes
+2. **During Work**: Skills emit signals (pattern, repair, completion)
+3. **Session End**: `finishing-a-development-branch` solidifies signals to genes
+
+### Requirements
+
+- Redis running on localhost:6379 (default)
+- Config at `~/.claude/evolution/config.yaml`
+
 ## Safety Rules
 
 1. **ALWAYS claim locks before work** - Use `node bin/dw.js claim --task <id>`

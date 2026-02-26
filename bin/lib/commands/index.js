@@ -9,4 +9,5 @@ export { work, done } from './work.js';
 export { listSessionsCmd, endSession, sessionHeartbeat } from './session.js';
 export { worktreeList, worktreeCreate, worktreeRemove } from './worktree.js';
 export { cleanup, pruneWorktrees } from './cleanup.js';
+export { evolveStatus, evolveSolidify, evolveExport, evolvePublish } from './evolve.js';
 //# sourceMappingURL=index.js.map

@@ -8,4 +8,5 @@ export { work, done } from './work.js';
 export { listSessionsCmd, endSession, sessionHeartbeat } from './session.js';
 export { worktreeList, worktreeCreate, worktreeRemove, type WorktreeInfo } from './worktree.js';
 export { cleanup, pruneWorktrees, type CleanupResult } from './cleanup.js';
+export { evolveStatus, evolveSolidify, evolveExport, evolvePublish, type EvolveStatusResult, type EvolveSolidifyResult, type EvolveExportResult, type EvolvePublishResult } from './evolve.js';
 //# sourceMappingURL=index.d.ts.map

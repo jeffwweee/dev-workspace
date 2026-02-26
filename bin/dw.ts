@@ -321,6 +321,55 @@ program
     console.log(formatOutput(result, options.json));
   });
 
+// evolve - Evolution system commands
+program
+  .command('evolve [action]')
+  .description('Evolution system commands: status, solidify, export, publish')
+  .option('--session <id>', 'Session ID (for solidify)')
+  .option('--gene <id>', 'Gene ID (for publish)')
+  .option('--limit <n>', 'Limit for status results (default: 10)', '10')
+  .option('--json', 'Output as JSON')
+  .action(async (action, options) => {
+    let result;
+    switch (action || 'status') {
+      case 'status':
+        result = await commands.evolveStatus({ limit: parseInt(options.limit, 10) });
+        break;
+      case 'solidify':
+        if (!options.session) {
+          result = {
+            success: false,
+            error: 'DW_MISSING_ARGS',
+            message: 'evolve solidify requires --session <id>'
+          };
+        } else {
+          result = await commands.evolveSolidify(options.session);
+        }
+        break;
+      case 'export':
+        result = await commands.evolveExport();
+        break;
+      case 'publish':
+        if (!options.gene) {
+          result = {
+            success: false,
+            error: 'DW_MISSING_ARGS',
+            message: 'evolve publish requires --gene <id>'
+          };
+        } else {
+          result = await commands.evolvePublish(options.gene);
+        }
+        break;
+      default:
+        result = {
+          success: false,
+          error: 'DW_UNKNOWN_SUBCOMMAND',
+          message: `Unknown action: ${action}. Use: status, solidify, export, publish`
+        };
+    }
+    console.log(formatOutput(result, options.json));
+  });
+
 // Global for JSON output flag
 declare global {
   var jsonOutput: boolean;

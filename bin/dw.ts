@@ -370,6 +370,24 @@ program
     console.log(formatOutput(result, options.json));
   });
 
+// bots - Manage Telegram gateway
+program
+  .command('bots')
+  .description('Manage Telegram bot gateway')
+  .argument('[subcommand]', 'Subcommand: start, stop, restart, status, logs, config', 'status')
+  .argument('[args...]', 'Additional arguments')
+  .option('--json', 'Output as JSON')
+  .option('--follow', 'Follow logs (for logs subcommand)')
+  .option('--lines <n>', 'Number of log lines', '100')
+  .action(async (subcommand, args, options) => {
+    const result = await commands.botsCommand(subcommand, args, {
+      json: options.json,
+      follow: options.follow,
+      lines: parseInt(options.lines, 10)
+    });
+    console.log(formatOutput(result, options.json));
+  });
+
 // Global for JSON output flag
 declare global {
   var jsonOutput: boolean;

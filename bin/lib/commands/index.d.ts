@@ -9,4 +9,5 @@ export { listSessionsCmd, endSession, sessionHeartbeat } from './session.js';
 export { worktreeList, worktreeCreate, worktreeRemove, type WorktreeInfo } from './worktree.js';
 export { cleanup, pruneWorktrees, type CleanupResult } from './cleanup.js';
 export { evolveStatus, evolveSolidify, evolveExport, evolvePublish, type EvolveStatusResult, type EvolveSolidifyResult, type EvolveExportResult, type EvolvePublishResult } from './evolve.js';
+export { botsCommand, botsStart, botsStop, botsRestart, botsStatus, botsLogs, botsConfig, type BotsOptions, type BotsResult } from './bots.js';
 //# sourceMappingURL=index.d.ts.map

@@ -19,3 +19,4 @@ export {
   type EvolveExportResult,
   type EvolvePublishResult
 } from './evolve.js';
+export { botsCommand, botsStart, botsStop, botsRestart, botsStatus, botsLogs, botsConfig, type BotsOptions, type BotsResult } from './bots.js';

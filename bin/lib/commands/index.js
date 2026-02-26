@@ -10,4 +10,5 @@ export { listSessionsCmd, endSession, sessionHeartbeat } from './session.js';
 export { worktreeList, worktreeCreate, worktreeRemove } from './worktree.js';
 export { cleanup, pruneWorktrees } from './cleanup.js';
 export { evolveStatus, evolveSolidify, evolveExport, evolvePublish } from './evolve.js';
+export { botsCommand, botsStart, botsStop, botsRestart, botsStatus, botsLogs, botsConfig } from './bots.js';
 //# sourceMappingURL=index.js.map

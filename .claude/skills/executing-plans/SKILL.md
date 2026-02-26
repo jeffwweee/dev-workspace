@@ -13,6 +13,27 @@ Load plan, review critically, execute tasks in batches, report for review betwee
 
 **Announce at start:** "I'm using the executing-plans skill to implement this plan."
 
+## Evolution Integration
+
+During plan execution, emit signals for evolution tracking:
+
+### Task Start
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'pattern', {task: '<task-id>', action: 'start'}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
+### Task Completion
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'completion', {task: '<task-id>', success: true}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
+### Error Recovery
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'repair', {error: '<error-type>', fix: '<fix-applied>', success: true}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
+These signals are non-blocking and fail silently if Redis unavailable.
+
 ## Usage
 
 ```bash

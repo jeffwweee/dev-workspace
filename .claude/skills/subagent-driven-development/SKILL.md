@@ -46,6 +46,27 @@ node bin/dw.js claim --task TASK-XXX
 
 **Working directory:** Tasks execute in worktrees at `~/worktrees/<project>/<task>/`
 
+## Evolution Integration
+
+During subagent execution, emit signals for evolution tracking:
+
+### Per-Task Signals
+
+When a task completes successfully:
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'completion', {task: '<task-id>', approach: '<approach-name>', duration: <seconds>}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
+When an error is recovered:
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'repair', {error: '<error>', fix: '<fix>', success: true}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
+When stuck detection triggers:
+```bash
+node -e "require('./lib/evolution-session.cjs').emitSignal(process.env.CLAUDE_SESSION_ID || 'local', 'stuck', {type: '<stuck-type>', loopCount: <count>}).then(() => process.exit(0))" 2>/dev/null || true
+```
+
 ## The Process
 
 ### Setup

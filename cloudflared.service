@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare Tunnel
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/cloudflared --config /home/jeffwweee/.cloudflared/config.yml tunnel run
+Restart=on-failure
+RestartSec=5s
+User=jeffwweee
+Group=jeffwweee
+
+[Install]
+WantedBy=multi-user.target

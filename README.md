@@ -17,6 +17,9 @@ A plug-and-play Claude Code workspace supporting **multiple concurrent CC sessio
 # Install dependencies
 npm install
 
+# Build TypeScript
+npm run build
+
 # Initialize a session
 node bin/dw.js init
 
@@ -35,6 +38,17 @@ node bin/dw.js claim --task TASK-001
 node bin/dw.js record-result --task TASK-001 --status passed --files "src/main.ts" --summary "Done"
 node bin/dw.js release --all
 ```
+
+## Complete Setup Guide
+
+For full setup including **Telegram bot integration** and **Cloudflare tunnels**, see:
+
+**[docs/SETUP.md](docs/SETUP.md)** - Complete setup guide with:
+- Dev-workspace initialization
+- Telegram bot configuration
+- Cloudflare tunnel setup
+- Service orchestration
+- Claude Code prompt template (paste & run)
 
 ## New PC Deployment
 

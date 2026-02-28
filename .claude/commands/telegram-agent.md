@@ -20,17 +20,24 @@ Steps:
    - Adopt this persona for the session
    - Inform user of the identity setup
 
-3. If `--poll` is set:
-   - Call the polling function from the telegram-agent skill
-   - Wait up to `--block-ms` for a message
-   - If message received, display it in format:
-     ```
-     📨 New message from @username (private chat 123456):
-     > Message text here
-     ```
-   - Store message context (messageId, botId, chatId, etc.) for reply
+3. If `--poll` is set, poll via gateway API:
+   ```bash
+   curl -s http://localhost:3100/poll | jq .
+   ```
 
-4. If no message and just identity setup, confirm ready state
+4. If message received, display it and STORE THE CONTEXT:
+   ```
+   📨 New message from @username (private chat 123456):
+   > Message text here
+
+   **Context for reply:**
+   - bot_id: <name>
+   - chat_id: <chat_id>
+   - inbox_id: <stream_id>
+   - reply_to: <message_id or null>
+   ```
+
+5. Keep this context in memory for the next `/telegram-reply` command
 
 Output format:
 ```
@@ -39,5 +46,7 @@ Output format:
 **Identity:** {name} ({who})
 **Style:** {response-style}
 **Polling:** yes/no
-**Message:** (if received)
+**Message:** (if received with full context)
 ```
+
+IMPORTANT: After polling, remember the bot_id, chat_id, inbox_id, and reply_to values - they are needed for /telegram-reply.

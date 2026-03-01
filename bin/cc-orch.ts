@@ -22,6 +22,13 @@ import {
   clearQueue
 } from '../lib/queue-manager';
 
+// Import integration modules
+import { advanceToNextStage, getStageInfo } from '../lib/pipeline-router';
+import { notifyBlocked, notifyFailed, notifyComplete } from '../lib/telegram-notifier';
+import { spawnAdhocAgent, listAdhocAgents, cleanupIdleAdhocAgents } from '../lib/adhoc-manager';
+import { syncAllAgents, syncToEvolutionRegistry } from '../lib/learning-sync';
+import { runArchiveCycle, listArchiveContents } from '../lib/archive-manager';
+
 const program = new Command();
 
 program
@@ -155,6 +162,113 @@ program.command('agents')
   .action(() => {
     const agents = getCoreAgents();
     console.log('Core agents:', agents.join(', '));
+  });
+
+// Pipeline advancement
+program.command('advance <taskId> <agent>')
+  .description('Advance task to next pipeline stage')
+  .action((taskId, agent) => {
+    const result = advanceToNextStage(taskId, agent, { status: 'COMPLETE' });
+    console.log('Advance result:', result);
+  });
+
+program.command('stage-info <agent>')
+  .description('Show pipeline stage info for agent')
+  .action((agent) => {
+    const info = getStageInfo(agent);
+    console.log(`Agent: ${info.agent}`);
+    console.log(`Position: ${info.index + 1}/${info.total}`);
+    console.log(`Previous: ${info.previous || 'none'}`);
+    console.log(`Next: ${info.next || 'none (last)'}`);
+  });
+
+// Adhoc agent management
+program.command('adhoc')
+  .description('List adhoc agents')
+  .action(() => {
+    const agents = listAdhocAgents();
+    console.log('\n=== Adhoc Agents ===');
+    if (agents.length === 0) {
+      console.log('None');
+    } else {
+      agents.forEach(a => {
+        console.log(`  ${a.sessionName}: ${a.type} (running: ${a.running})`);
+      });
+    }
+  });
+
+program.command('adhoc-spawn <type>')
+  .description('Spawn an adhoc agent')
+  .option('-t, --task <id>', 'Task ID')
+  .action((type, options) => {
+    const result = spawnAdhocAgent(type, { taskId: options.task });
+    console.log('Spawn result:', result);
+  });
+
+program.command('adhoc-cleanup')
+  .description('Cleanup idle adhoc agents')
+  .action(() => {
+    const result = cleanupIdleAdhocAgents();
+    console.log(`Cleaned up ${result.killed} idle adhoc agents`);
+  });
+
+// Learning sync
+program.command('learn')
+  .description('Sync learning to Redis')
+  .option('-a, --agent <name>', 'Specific agent (all if not specified)')
+  .action((options) => {
+    if (options.agent) {
+      const result = syncToEvolutionRegistry(options.agent);
+      console.log(`Synced ${result.synced}/${result.total} learnings from ${options.agent}`);
+    } else {
+      const result = syncAllAgents();
+      console.log(`Synced ${result.totalSynced} total learnings`);
+    }
+  });
+
+// Archive management
+program.command('archive')
+  .description('Run archive cycle')
+  .action(() => {
+    const result = runArchiveCycle();
+    console.log('Archive cycle complete:', JSON.stringify(result, null, 2));
+  });
+
+program.command('archive-list')
+  .description('List archive contents')
+  .action(() => {
+    const { months, contents } = listArchiveContents();
+    console.log('\n=== Archive Contents ===');
+    for (const month of months) {
+      console.log(`\n${month}:`);
+      const data = contents[month];
+      if (data.memories?.length) console.log(`  Memories: ${data.memories.length} files`);
+      if (data.progress?.length) console.log(`  Progress: ${data.progress.length} files`);
+      if (data.handoffs?.length) console.log(`  Handoffs: ${data.handoffs.length} files`);
+    }
+  });
+
+// Notifications
+program.command('notify <type>')
+  .description('Send test notification')
+  .option('-t, --task <id>', 'Task ID', 'TEST-001')
+  .action(async (type, options) => {
+    let result;
+    switch (type) {
+      case 'blocked':
+        result = await notifyBlocked({ id: options.task }, 'backend', 'Test block');
+        break;
+      case 'failed':
+        result = await notifyFailed({ id: options.task }, 'backend', 'Test error');
+        break;
+      case 'complete':
+        result = await notifyComplete({ id: options.task }, 'default', '5 minutes');
+        break;
+      default:
+        console.log('Unknown type. Use: blocked, failed, complete');
+        return;
+    }
+    console.log('Notification result:', result);
   });
 
 program.parse();

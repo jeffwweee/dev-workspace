@@ -215,3 +215,14 @@ When using `--task`, include task reference in header:
 
 ---
 ```
+
+## Integration
+
+**Meta-skill:**
+- **using-skills** - Invoke BEFORE any response to check for applicable skills
+
+**Related skills:**
+- **comm-brainstorm** - Use BEFORE plan-create for design exploration
+- **plan-execute** - Batch execution with human checkpoints
+- **plan-parallel** - Fresh subagent per task with two-stage review
+

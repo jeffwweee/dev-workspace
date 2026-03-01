@@ -219,6 +219,9 @@ node bin/dw.js release --all
 
 ## Integration
 
+**Meta-skill:**
+- **using-skills** - Invoke BEFORE any response to check for applicable skills
+
 **Required workflow skills:**
 - **plan-create** - Creates the plan this skill executes
 - **review-code** - Can be used for spec/quality reviews
@@ -230,3 +233,4 @@ node bin/dw.js release --all
 
 **Orchestration:**
 - **task-register** - For managing task status
+

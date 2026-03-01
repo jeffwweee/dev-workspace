@@ -136,6 +136,9 @@ node bin/dw.js release --all
 
 ## Integration
 
+**Meta-skill:**
+- **using-skills** - Invoke BEFORE any response to check for applicable skills
+
 **Required workflow skills:**
 - **plan-create** - Creates the plan this skill executes
 - **task-complete** - Complete development after all tasks
@@ -144,6 +147,7 @@ node bin/dw.js release --all
 **Orchestration:**
 - **task-register** - For managing task status
 - **dev-test** - For running verification commands
+
 
 ## Alternative: plan-parallel
 

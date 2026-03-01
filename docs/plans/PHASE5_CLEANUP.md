@@ -183,27 +183,53 @@ git commit -m "refactor: remove old state files (fresh start with new structure)
 
 ---
 
-## Task 5.7: Remove Old Phase Plans
+## Task 5.7: Remove Old Skills (Replaced by New Category-Prefixed Skills)
 
 **Files:**
-- Remove: `docs/plans/PHASE*_ORCHESTRATOR*.md` (old plans from earlier session)
+- Remove: `.claude/skills/writing-plans/` (replaced by `plan-create`)
+- Remove: `.claude/skills/project-planner/` (replaced by `task-register`)
+- Remove: `.claude/skills/executing-plans/` (replaced by `plan-execute`)
+- Remove: `.claude/skills/subagent-driven-development/` (replaced by `plan-parallel`)
+- Remove: `.claude/skills/code-reviewer/` (replaced by `review-code`)
+- Remove: `.claude/skills/verification-before-completion/` (replaced by `review-verify`)
+- Remove: `.claude/skills/git-agent/` (replaced by `dev-git`)
+- Remove: `.claude/skills/tester/` (replaced by `dev-test`)
+- Remove: `.claude/skills/docs-creator/` (replaced by `dev-docs`)
+- Remove: `.claude/skills/systematic-debugging/` (replaced by `dev-debug`)
+- Remove: `.claude/skills/brainstorming/` (replaced by `comm-brainstorm`)
+- Remove: `.claude/skills/finishing-a-development-branch/` (replaced by `task-complete`)
+- Remove: `.claude/skills/project-session/` (replaced by orchestrator)
+- Remove: `.claude/skills/copywriting/` (niche, rarely used)
 
-**Step 1: Remove old phase plans**
+**Step 1: Remove old skill directories**
 
 ```bash
-rm -f docs/plans/PHASE1_FOUNDATION_ORCHESTRATOR.md
-rm -f docs/plans/PHASE2_CORE_AGENTS_ORCHESTRATOR.md
-rm -f docs/plans/PHASE3_WORKFLOW_PIPELINE_ORCHESTRATOR.md
-rm -f docs/plans/PHASE4_QUEUING_LEARNING_ORCHESTRATOR.md
-rm -f docs/plans/PHASE5_RSS_INTEGRATION_ORCHESTRATOR.md
+rm -rf .claude/skills/writing-plans
+rm -rf .claude/skills/project-planner
+rm -rf .claude/skills/executing-plans
+rm -rf .claude/skills/subagent-driven-development
+rm -rf .claude/skills/code-reviewer
+rm -rf .claude/skills/verification-before-completion
+rm -rf .claude/skills/git-agent
+rm -rf .claude/skills/tester
+rm -rf .claude/skills/docs-creator
+rm -rf .claude/skills/systematic-debugging
+rm -rf .claude/skills/brainstorming
+rm -rf .claude/skills/finishing-a-development-branch
+rm -rf .claude/skills/project-session
+rm -rf .claude/skills/copywriting
 ```
 
 **Step 2: Commit**
 
 ```bash
-git add docs/plans/
-git commit -m "refactor: remove old phase plans (superseded by new overhaul plans)"
+git add .claude/skills/
+git commit -m "refactor: remove old skills (replaced by category-prefixed versions)"
 ```
+
+---
+
+## Task 5.8: Remove Old Phase Plans
 
 ---
 

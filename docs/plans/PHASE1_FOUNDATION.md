@@ -217,6 +217,11 @@ export const CORE_AGENTS = ['backend', 'frontend', 'qa', 'review-git'] as const 
 /**
  * Spawns a Claude Code agent in a tmux session
  * Uses CLAUDECODE workaround to allow nested Claude Code sessions
+ *
+ * Reference: modules/bots/scripts/start-telegram-agent.sh for:
+ * - Model selection: claude --model sonnet|opus|haiku
+ * - Persona injection: /telegram-agent --name <bot> --who "<persona>"
+ * - Style configuration: --response-style professional|casual
  */
 export function spawnAgent(options: SpawnOptions): SpawnResult {
   const {

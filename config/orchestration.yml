@@ -1,0 +1,109 @@
+bots:
+  # Primary orchestrator bot
+  - name: pichu
+    token: ${PICHU_BOT_TOKEN}
+    username: pichu_cc_bot
+    role: orchestrator
+    tmux:
+      session: cc-orchestrator
+      window: 0
+      pane: 0
+    permissions:
+      allowed_chats: [195061634]
+      admin_users: [195061634]
+
+  # Backend agent bot
+  - name: pikachu
+    token: ${PIKACHU_BOT_TOKEN}
+    username: pikachu_cc_bot
+    role: backend
+    tmux:
+      session: cc-backend
+      window: 0
+      pane: 0
+    agent_config:
+      skills: [dev-test, review-code]
+      memory: state/memory/backend.md
+    permissions:
+      allowed_chats: [195061634]
+      admin_users: [195061634]
+
+  # Frontend agent bot
+  - name: raichu
+    token: ${RAICHU_BOT_TOKEN}
+    username: raichu_cc_bot
+    role: frontend
+    tmux:
+      session: cc-frontend
+    agent_config:
+      skills: [dev-test, review-code]
+      memory: state/memory/frontend.md
+    permissions:
+      allowed_chats: [195061634]
+      admin_users: [195061634]
+
+  # QA agent bot
+  - name: bulbasaur
+    token: ${BULBASAUR_BOT_TOKEN}
+    username: bulbasaur_cc_bot
+    role: qa
+    tmux:
+      session: cc-qa
+    agent_config:
+      skills: [dev-test, review-verify]
+      memory: state/memory/qa.md
+    permissions:
+      allowed_chats: [195061634]
+      admin_users: [195061634]
+
+  # Review-git agent bot
+  - name: charmander
+    token: ${CHARMANDER_BOT_TOKEN}
+    username: charmander_cc_bot
+    role: review-git
+    tmux:
+      session: cc-review
+    agent_config:
+      skills: [review-code, dev-git]
+      memory: state/memory/review-git.md
+      outputs: [confidence_score, commit_hash]
+    permissions:
+      allowed_chats: [195061634]
+      admin_users: [195061634]
+
+workflows:
+  default:
+    pipeline: [backend, review-git, frontend, review-git, qa]
+    review_threshold: 0.8
+    max_retries: 3
+    retry_backoff_base_ms: 30000
+
+  backend_only:
+    pipeline: [backend, review-git, qa]
+    review_threshold: 0.85
+
+  frontend_only:
+    pipeline: [frontend, review-git, qa]
+    review_threshold: 0.75
+
+limits:
+  max_adhoc_per_type: 2
+  max_total_adhoc: 5
+  max_queue_length: 3
+  adhoc_idle_timeout_ms: 1800000
+
+orchestrator:
+  loop_interval_ms: 30000
+  telegram_poll_interval_ms: 5000
+  plan_watch_enabled: true
+  plan_watch_paths:
+    - "docs/plans/*.md"
+
+archiving:
+  max_file_size_kb: 50
+  max_task_count: 50
+  weekly_archive: true
+
+cleanup:
+  adhoc_idle_timeout_ms: 1800000
+  core_agent_clear_on_complete: true

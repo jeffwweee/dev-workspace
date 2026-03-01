@@ -13,6 +13,7 @@ export interface QueueTask {
   workflow?: string;
   planPath?: string;
   handoffPath?: string;
+  handoffFrom?: string;
   priority?: number;
   enqueued_at?: string;
   position?: number;

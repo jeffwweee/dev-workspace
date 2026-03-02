@@ -40,36 +40,6 @@ import {
 
 import { injectTmuxCommand, TmuxTarget } from './tmux';
 
-import {
-  readQueue,
-  enqueueTask,
-  dequeueTask,
-  getQueueLength,
-  isQueueFull
-} from './queue-manager';
-
-import {
-  readAgentMemory,
-  appendAgentMemory,
-  readPrimaryMemory,
-  createProgressFile,
-  readProgressFile,
-  updateProgressFile
-} from './memory-manager';
-
-import {
-  createHandoff,
-  saveHandoff,
-  readHandoff
-} from './handoff';
-
-import {
-  loadConfig,
-  getWorkflow,
-  getLimits,
-  getOrchestratorSettings
-} from './orchestration-config';
-
 export interface OrchestratorState {
   isRunning: boolean;
   loopCount: number;

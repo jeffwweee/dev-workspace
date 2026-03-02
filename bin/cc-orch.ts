@@ -92,11 +92,23 @@ program.command('spawn <agent>')
   .option('--role <role>', 'Role skill to load (e.g., backend-developer)')
   .option('--persona <persona>', 'Persona to use (default: telegram-agent)')
   .option('--model <model>', 'Model to use (sonnet/opus/haiku)')
+  .option('--skills <skills>', 'Comma-separated skills to load (e.g., commander,dev-test)')
   .action((agent, options) => {
+    // Parse skills option
+    const skills = options.skills ? options.skills.split(',').map((s: string) => s.trim()) : [];
+
+    // Orchestrator always gets commander skill
+    if (agent === 'orchestrator' || agent === 'pichu') {
+      if (!skills.includes('commander')) {
+        skills.push('commander');
+      }
+    }
+
     const result = spawnAgent({
       name: agent,
       role: options.role,
       persona: options.persona,
+      skills,
       model: options.model || 'sonnet',
       isAdhoc: options.adhoc || false,
       memoryFile: `state/memory/${agent}.md`

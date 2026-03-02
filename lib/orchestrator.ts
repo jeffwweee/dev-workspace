@@ -37,6 +37,7 @@ import {
   getOrchestratorSettings,
   getBotByRole
 } from './orchestration-config';
+import { getReferencedSkills } from './role-loader.js';
 
 import { injectTmuxCommand, TmuxTarget } from './tmux';
 
@@ -64,10 +65,15 @@ export async function initialize(): Promise<void> {
   for (const agent of getCoreAgents()) {
     if (!isAgentRunning(agent)) {
       console.log(`[Orchestrator] Spawning ${agent} agent...`);
+      const botConfig = getBotByRole(agent);
+      const roleSkill = botConfig?.agent_config?.role_skill;
+
       spawnAgent({
         name: agent,
-        memoryFile: `state/memory/${agent}.md`,
-        isAdhoc: false
+        persona: botConfig?.agent_config?.persona,
+        role: roleSkill,
+        memoryFile: botConfig?.agent_config?.memory,
+        model: 'sonnet'
       });
     } else {
       console.log(`[Orchestrator] ${agent} agent already running`);

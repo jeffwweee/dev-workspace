@@ -17,6 +17,7 @@ export interface QueueTask {
   priority?: number;
   enqueued_at?: string;
   position?: number;
+  chatId?: number;  // Telegram chat ID for notifications
 }
 
 export interface Queue {

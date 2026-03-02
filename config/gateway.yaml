@@ -23,7 +23,7 @@ bots:
       pane: 0
     wake_command: "/telegram-agent --poll"
     permissions:
-      allowed_chats: [195061634]
+      allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]
 
   - name: "pikachu"
@@ -37,7 +37,7 @@ bots:
       pane: 0
     wake_command: "/telegram-agent --poll"
     permissions:
-      allowed_chats: [195061634]
+      allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]
 
   - name: "raichu"
@@ -51,7 +51,7 @@ bots:
       pane: 0
     wake_command: "/telegram-agent --poll"
     permissions:
-      allowed_chats: [195061634]
+      allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]
 
   - name: "bulbasaur"
@@ -65,7 +65,7 @@ bots:
       pane: 0
     wake_command: "/telegram-agent --poll"
     permissions:
-      allowed_chats: [195061634]
+      allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]
 
   - name: "charmander"
@@ -79,7 +79,7 @@ bots:
       pane: 0
     wake_command: "/telegram-agent --poll"
     permissions:
-      allowed_chats: [195061634]
+      allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]
 
 logging:

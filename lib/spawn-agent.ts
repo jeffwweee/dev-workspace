@@ -24,6 +24,39 @@ export const CORE_AGENTS = ['backend', 'frontend', 'qa', 'review-git'] as const;
 type CoreAgent = typeof CORE_AGENTS[number];
 
 /**
+ * Waits for a skill to fully load by checking tmux pane output
+ * Looks for completion indicators like "Successfully loaded skill" or skill prompt
+ */
+function waitForSkillLoad(sessionName: string, skill: string, maxWaitMs = 15000): void {
+  const startTime = Date.now();
+  const checkInterval = 500; // Check every 500ms
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const output = execSync(`tmux capture-pane -t ${sessionName} -p -S -10 2>/dev/null`, { encoding: 'utf-8' });
+
+      // Check for skill load completion indicators
+      if (output.includes('Successfully loaded skill') ||
+          output.includes('Skill loaded') ||
+          output.includes('Identity established') ||
+          output.includes('ready for messages') ||
+          output.match(new RegExp(`/${skill}.*Use when`, 's'))) {
+        // Skill loaded, wait a brief moment for stability
+        execSync('sleep 0.5');
+        return;
+      }
+    } catch {
+      // Ignore errors, keep waiting
+    }
+
+    execSync(`sleep ${checkInterval / 1000}`);
+  }
+
+  // Timeout reached, proceed anyway but log warning
+  console.warn(`[Spawn] Warning: Skill ${skill} may not have fully loaded after ${maxWaitMs}ms`);
+}
+
+/**
  * Spawns a Claude Code agent in a tmux session
  * Uses CLAUDECODE workaround to allow nested Claude Code sessions
  *
@@ -91,10 +124,11 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
     execSync('sleep 2');
   }
 
-  // Load skills
+  // Load skills - wait for each to fully load before injecting next
   for (const skill of skillsToLoad) {
     execSync(`tmux send-keys -t ${sessionName} '/${skill}' Enter`);
-    execSync('sleep 1');
+    // Wait for skill to load by checking for completion indicators
+    waitForSkillLoad(sessionName, skill);
   }
 
   return { sessionName, status: 'spawned' };

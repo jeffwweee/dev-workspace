@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getBotByRole } from './orchestration-config';
 
 export interface SpawnOptions {
   name: string;
@@ -68,7 +69,16 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
   // Wait for startup
   execSync('sleep 5');
 
-  // Configure agent if persona provided
+  // Inject telegram-agent identity FIRST (before other skills)
+  // This establishes the bot identity for /telegram-reply
+  const botConfig = getBotByRole(name);
+  if (botConfig) {
+    const identityCmd = `/telegram-agent --name ${botConfig.name} --who "${persona || botConfig.role}"`;
+    execSync(`tmux send-keys -t ${sessionName} '${identityCmd}' Enter`);
+    execSync('sleep 2');
+  }
+
+  // Configure agent if persona provided (legacy agent-setup)
   if (persona) {
     let agentCmd = `/agent-setup --who "${persona}" --response-style ${style}`;
     if (memoryFile) {

@@ -280,6 +280,10 @@ async function handleTaskComplete(taskId: string, taskInfo: { agent: string; wor
   if (currentIndex === -1 || currentIndex === workflow.pipeline.length - 1) {
     // Task fully complete
     console.log(`[Orchestrator] Task ${taskId} fully complete!`);
+
+    // Send completion notification
+    await sendNotification(`✅ ${taskId} complete!`);
+
     state.activeTasks.delete(taskId);
     return;
   }
@@ -306,6 +310,9 @@ async function handleTaskComplete(taskId: string, taskInfo: { agent: string; wor
 
   if (enqueueResult.success) {
     console.log(`[Orchestrator] Queued ${taskId} for ${nextAgent}`);
+
+    // Send stage transition notification
+    await sendNotification(`📤 ${taskId}: ${taskInfo.agent} → ${nextAgent}`);
   }
 
   state.activeTasks.delete(taskId);

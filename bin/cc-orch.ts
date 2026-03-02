@@ -121,11 +121,13 @@ program.command('submit <taskId>')
   .description('Submit a task to the orchestrator')
   .option('-p, --plan <path>', 'Path to plan file')
   .option('-w, --workflow <name>', 'Workflow to use', 'default')
+  .option('-c, --chat-id <id>', 'Telegram chat ID for notifications', parseInt)
   .action(async (taskId, options) => {
     const result = await submitTask({
       id: taskId,
       planPath: options.plan,
-      workflow: options.workflow
+      workflow: options.workflow,
+      chatId: options.chatId
     });
     console.log('Submit result:', result);
   });

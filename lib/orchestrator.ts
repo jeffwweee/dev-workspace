@@ -153,14 +153,14 @@ async function assignTask(agent: string, task: { id: string; planPath?: string; 
     workflow: task.workflow
   });
 
-  // Build injection command
+  // Build injection command (always use --auto for automated pipeline)
   let injectCmd = '';
   if (task.handoffPath) {
-    injectCmd = `/skill plan-execute --handoff ${task.handoffPath}`;
+    injectCmd = `/plan-execute --auto --handoff ${task.handoffPath}`;
   } else if (task.planPath) {
-    injectCmd = `/skill plan-execute --plan ${task.planPath}`;
+    injectCmd = `/plan-execute --auto --plan ${task.planPath}`;
   } else {
-    injectCmd = `/skill plan-execute --task ${task.id}`;
+    injectCmd = `/plan-execute --auto --task ${task.id}`;
   }
 
   // Inject task to agent tmux
@@ -315,9 +315,9 @@ async function processQueues(): Promise<void> {
           });
 
           if (task.handoffPath) {
-            sendToAgent(agent, `/skill plan-execute --handoff ${task.handoffPath}`);
+            sendToAgent(agent, `/plan-execute --auto --handoff ${task.handoffPath}`);
           } else if (task.planPath) {
-            sendToAgent(agent, `/skill plan-execute --plan ${task.planPath}`);
+            sendToAgent(agent, `/plan-execute --auto --plan ${task.planPath}`);
           }
 
           console.log(`[Orchestrator] Assigned ${task.id} to ${agent}`);
@@ -330,7 +330,7 @@ async function processQueues(): Promise<void> {
 /**
  * Submits a new task to the orchestrator
  */
-export async function submitTask(task: { id: string; description?: string; workflow?: string; planPath?: string }): Promise<{ success: boolean; position?: number }> {
+export async function submitTask(task: { id: string; description?: string; workflow?: string; planPath?: string; chatId?: number }): Promise<{ success: boolean; position?: number }> {
   const workflow = getWorkflow(task.workflow || 'default');
   const firstAgent = workflow.pipeline[0];
 
@@ -340,7 +340,8 @@ export async function submitTask(task: { id: string; description?: string; workf
     id: task.id,
     description: task.description,
     workflow: task.workflow || 'default',
-    planPath: task.planPath
+    planPath: task.planPath,
+    chatId: task.chatId
   });
 
   return result;

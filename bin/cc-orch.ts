@@ -89,12 +89,16 @@ program.command('status')
 program.command('spawn <agent>')
   .description('Spawn a specific agent')
   .option('--adhoc', 'Spawn as adhoc agent')
-  .option('--persona <text>', 'Agent persona')
+  .option('--role <role>', 'Role skill to load (e.g., backend-developer)')
+  .option('--persona <persona>', 'Persona to use (default: telegram-agent)')
+  .option('--model <model>', 'Model to use (sonnet/opus/haiku)')
   .action((agent, options) => {
     const result = spawnAgent({
       name: agent,
-      isAdhoc: options.adhoc || false,
+      role: options.role,
       persona: options.persona,
+      model: options.model || 'sonnet',
+      isAdhoc: options.adhoc || false,
       memoryFile: `state/memory/${agent}.md`
     });
     console.log('Spawn result:', result);

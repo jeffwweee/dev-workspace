@@ -2,10 +2,13 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getBotByRole } from './orchestration-config';
+import { getPersonaSkills } from './persona-loader.js';
+import { getReferencedSkills, isRoleSkill } from './role-loader.js';
 
 export interface SpawnOptions {
   name: string;
   persona?: string;
+  role?: string;        // Add: role skill name
   skills?: string[];
   memoryFile?: string;
   isAdhoc?: boolean;
@@ -69,6 +72,7 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
   const {
     name,
     persona,
+    role,
     skills = [],
     memoryFile,
     isAdhoc = false,
@@ -102,9 +106,20 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
     initialPrompt = `"/telegram-agent --name ${botConfig.name} --who \\"${persona || botConfig.role}\\""`;
   }
 
-  // Read skills from config (preferred) or options (fallback)
-  const configSkills = botConfig?.agent_config?.skills || [];
-  const skillsToLoad = skills && skills.length > 0 ? skills : configSkills;
+  // Determine skills to load:
+  // 1. If role provided, load role skill (it will lazy-load references)
+  // 2. Fall back to config skills
+  // 3. Fall back to options skills
+  let skillsToLoad: string[] = [];
+
+  if (role && isRoleSkill(role)) {
+    // Load role skill - referenced skills are lazy-loaded on invocation
+    skillsToLoad = [role];
+  } else {
+    // Legacy behavior: use explicit skills from config or options
+    const configSkills = botConfig?.agent_config?.skills || [];
+    skillsToLoad = skills && skills.length > 0 ? skills : configSkills;
+  }
 
   // Start Claude with CLAUDECODE unset (workaround for nested sessions)
   // Initial prompt is passed directly as CLI argument

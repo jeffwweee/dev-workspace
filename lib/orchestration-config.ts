@@ -22,6 +22,8 @@ export interface BotConfig {
     skills?: string[];
     memory?: string;
     outputs?: string[];
+    persona?: string;      // Add: persona name (e.g., telegram-agent)
+    role_skill?: string;   // Add: role skill name (e.g., backend-developer)
   };
   permissions?: {
     allowed_chats?: number[];

@@ -34,7 +34,7 @@ for (let i = 0; i < args.length; i++) {
 
 // Default config path if not specified
 if (!configPath) {
-  configPath = 'modules/bots/config/bots.local.yaml';
+  configPath = 'config/gateway.yaml';
 }
 
 // Resolve to absolute path
@@ -44,8 +44,8 @@ const absoluteConfigPath = resolve(process.cwd(), configPath);
 if (!existsSync(absoluteConfigPath)) {
   console.error(`Config file not found: ${absoluteConfigPath}`);
   console.error('\nAvailable configs:');
-  console.error('  modules/bots/config/bots.local.yaml  - Local development');
-  console.error('  modules/bots/config/bots.example.yaml - Example template');
+  console.error('  config/gateway.yaml                   - Dev-workspace config');
+  console.error('  modules/bots/config/bots.local.yaml  - Alternative (modules/bots)');
   console.error('\nCreate a config file or specify with --config <path>');
   process.exit(1);
 }

@@ -127,8 +127,8 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
   // Load skills - wait for each to fully load before injecting next
   for (const skill of skillsToLoad) {
     execSync(`tmux send-keys -t ${sessionName} '/${skill}' Enter`);
-    // Wait for skill to load by checking for completion indicators
-    waitForSkillLoad(sessionName, skill);
+    // Wait for skill to fully load (5 seconds per skill)
+    execSync('sleep 5');
   }
 
   return { sessionName, status: 'spawned' };

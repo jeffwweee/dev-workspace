@@ -9,7 +9,8 @@ bots:
       window: 0
       pane: 0
     agent_config:
-      skills: [telegram-agent, comm-brainstorm, commander]
+      persona: telegram-agent
+      role_skill: orchestrator-developer
       memory: state/memory/orchestrator.md
     permissions:
       allowed_chats: [195061634]
@@ -25,7 +26,8 @@ bots:
       window: 0
       pane: 0
     agent_config:
-      skills: [telegram-agent, dev-test, review-code, plan-execute]
+      persona: telegram-agent
+      role_skill: backend-developer
       memory: state/memory/backend.md
     permissions:
       allowed_chats: [195061634]
@@ -39,7 +41,8 @@ bots:
     tmux:
       session: cc-frontend
     agent_config:
-      skills: [telegram-agent, dev-test, review-code]
+      persona: telegram-agent
+      role_skill: frontend-developer
       memory: state/memory/frontend.md
     permissions:
       allowed_chats: [195061634]
@@ -53,7 +56,8 @@ bots:
     tmux:
       session: cc-qa
     agent_config:
-      skills: [telegram-agent, dev-test, review-verify]
+      persona: telegram-agent
+      role_skill: qa-developer
       memory: state/memory/qa.md
     permissions:
       allowed_chats: [195061634]
@@ -67,7 +71,8 @@ bots:
     tmux:
       session: cc-review
     agent_config:
-      skills: [telegram-agent, review-code, dev-git]
+      persona: telegram-agent
+      role_skill: qa-developer  # Uses QA skills for review workflow
       memory: state/memory/review-git.md
       outputs: [confidence_score, commit_hash]
     permissions:

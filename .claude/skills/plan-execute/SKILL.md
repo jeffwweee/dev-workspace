@@ -21,7 +21,46 @@ Load plan, review critically, execute tasks in batches, report for review betwee
 
 # Execute plan linked to task (reads plan path from task)
 /plan-execute --task TASK-001
+
+# Auto mode: Execute without waiting for feedback (for automated pipelines)
+/plan-execute --auto --plan docs/plans/2026-02-24-feature.md
+/plan-execute --auto --task TASK-001
 ```
+
+## Flags
+
+- `--plan <path>` - Path to plan file
+- `--task <id>` - Task ID (reads plan path from task registry)
+- `--auto` - Automated mode: skip feedback checkpoints, continue through all batches
+- `--handoff <path>` - Path to handoff document (alternative to plan)
+
+## Notification Protocol
+
+When executing a task with `chat_id` in context, send Telegram notifications at lifecycle events:
+
+### Events
+
+| Event | When | Format |
+|-------|------|--------|
+| START | Task begins | `▶ Starting {taskId}...` |
+| PROGRESS | Batch complete | `✓ Batch {n}/{total}: {summary}` |
+| BLOCKED | Cannot proceed | `⚠ BLOCKED: {reason}` |
+| COMPLETE | All done | `✅ {taskId} complete!` |
+
+### How to Notify
+
+Use `/telegram-reply` with task's chat_id:
+
+```bash
+/telegram-reply --chat-id {chatId} --text "▶ Starting TASK-001..."
+```
+
+### In Auto Mode
+
+- Send START notification when plan execution begins
+- Send PROGRESS after each batch
+- Send COMPLETE when all tasks done
+- Send BLOCKED if stopping due to unresolvable issue
 
 ## Context: Dev-Workspace Integration
 
@@ -47,7 +86,9 @@ node bin/dw.js claim --task TASK-XXX
 
 1. Read plan file from `docs/plans/YYYY-MM-DD-<feature-name>.md`
 2. Review critically - identify any questions or concerns about the plan
-3. If concerns: Raise them with your human partner before starting
+3. If concerns:
+   - **Normal mode:** Raise them with your human partner before starting
+   - **Auto mode:** Log concerns and proceed if resolvable, stop if critical blocker
 4. If no concerns: Create task list and proceed
 
 ### Step 2: Execute Batch
@@ -65,14 +106,22 @@ For each task:
 When batch complete:
 - Show what was implemented
 - Show verification output
-- Say: "Ready for feedback."
+
+**Mode-specific behavior:**
+- **Normal mode:** Say "Ready for feedback." and wait
+- **Auto mode:** Skip waiting, immediately proceed to Step 4
 
 ### Step 4: Continue
 
-Based on feedback:
+**Normal mode:** Based on feedback:
 - Apply changes if needed
 - Execute next batch
 - Repeat until complete
+
+**Auto mode:** Automatically:
+- Execute next batch immediately
+- Repeat until all tasks complete
+- Only stop for blockers (test failures, missing deps, ambiguous instructions)
 
 ### Step 5: Complete Development
 
@@ -88,7 +137,13 @@ After all tasks complete and verified:
 - Hit a blocker mid-batch (missing dependency, test fails, instruction unclear)
 - Plan has critical gaps preventing starting
 - You don't understand an instruction
-- Verification fails repeatedly
+- Verification fails repeatedly (3+ attempts)
+
+**Auto mode additional stopping conditions:**
+- Test/verification fails 3 times consecutively
+- Missing dependency cannot be auto-resolved
+- Plan instruction is ambiguous and cannot be interpreted confidently
+- Git conflict or merge issue detected
 
 **Ask for clarification rather than guessing.**
 
@@ -102,6 +157,7 @@ After all tasks complete and verified:
 
 ## Dev-Workspace Session Flow
 
+**Normal mode (with checkpoints):**
 ```
 node bin/dw.js claim --task TASK-XXX
     ↓
@@ -113,6 +169,8 @@ Execute batch of tasks (3 at a time)
     ↓
 Report for review
     ↓
+Wait for feedback
+    ↓
 Continue until complete
     ↓
 review-verify
@@ -122,6 +180,35 @@ dev-docs (update progress.md)
 task-complete
     ↓
 node bin/dw.js release --all
+```
+
+**Auto mode (no checkpoints):**
+```
+Load plan from docs/plans/
+    ↓
+Send START notification
+    ↓
+Execute batch 1 (3 tasks)
+    ↓
+Send PROGRESS notification
+    ↓
+[Auto-continue - no wait]
+    ↓
+Execute batch 2 (next 3 tasks)
+    ↓
+Send PROGRESS notification
+    ↓
+[Auto-continue - no wait]
+    ↓
+... repeat until all tasks complete ...
+    ↓
+review-verify (auto)
+    ↓
+task-complete (auto)
+    ↓
+Send COMPLETE notification
+    ↓
+Notify orchestrator via state/progress/
 ```
 
 ## Remember

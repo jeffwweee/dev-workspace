@@ -61,22 +61,25 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
     return { sessionName, status: 'error', error: message };
   }
 
-  // Start Claude with CLAUDECODE unset (workaround for nested sessions)
-  // Reference: start-telegram-agent.sh uses --dangerously-skip-permissions and --model flags
-  const startCmd = `env -u CLAUDECODE claude --dangerously-skip-permissions --model ${model}`;
-  execSync(`tmux send-keys -t ${sessionName} '${startCmd}' Enter`);
-
-  // Wait for startup
-  execSync('sleep 5');
-
-  // Inject telegram-agent identity FIRST (before other skills)
-  // This establishes the bot identity for /telegram-reply
+  // Build initial prompt with telegram-agent identity
+  // Pass directly to Claude CLI to eliminate startup delays
+  let initialPrompt = '';
   const botConfig = getBotByRole(name);
   if (botConfig) {
-    const identityCmd = `/telegram-agent --name ${botConfig.name} --who "${persona || botConfig.role}"`;
-    execSync(`tmux send-keys -t ${sessionName} '${identityCmd}' Enter`);
-    execSync('sleep 2');
+    initialPrompt = `"/telegram-agent --name ${botConfig.name} --who \\"${persona || botConfig.role}\\""`;
   }
+
+  // Read skills from config (preferred) or options (fallback)
+  const configSkills = botConfig?.agent_config?.skills || [];
+  const skillsToLoad = skills && skills.length > 0 ? skills : configSkills;
+
+  // Start Claude with CLAUDECODE unset (workaround for nested sessions)
+  // Initial prompt is passed directly as CLI argument
+  const startCmd = `env -u CLAUDECODE claude --dangerously-skip-permissions --model ${model} ${initialPrompt}`;
+  execSync(`tmux send-keys -t ${sessionName} '${startCmd}' Enter`);
+
+  // Minimal wait for tmux to process
+  execSync('sleep 1');
 
   // Configure agent if persona provided (legacy agent-setup)
   if (persona) {
@@ -89,8 +92,8 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
   }
 
   // Load skills
-  for (const skill of skills) {
-    execSync(`tmux send-keys -t ${sessionName} '/skill ${skill}' Enter`);
+  for (const skill of skillsToLoad) {
+    execSync(`tmux send-keys -t ${sessionName} '/${skill}' Enter`);
     execSync('sleep 1');
   }
 

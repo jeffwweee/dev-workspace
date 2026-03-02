@@ -8,6 +8,9 @@ bots:
       session: cc-orchestrator
       window: 0
       pane: 0
+    agent_config:
+      skills: [telegram-agent, comm-brainstorm, commander]
+      memory: state/memory/orchestrator.md
     permissions:
       allowed_chats: [195061634]
       admin_users: [195061634]
@@ -22,7 +25,7 @@ bots:
       window: 0
       pane: 0
     agent_config:
-      skills: [dev-test, review-code]
+      skills: [telegram-agent, dev-test, review-code, plan-execute]
       memory: state/memory/backend.md
     permissions:
       allowed_chats: [195061634]
@@ -36,7 +39,7 @@ bots:
     tmux:
       session: cc-frontend
     agent_config:
-      skills: [dev-test, review-code]
+      skills: [telegram-agent, dev-test, review-code]
       memory: state/memory/frontend.md
     permissions:
       allowed_chats: [195061634]
@@ -50,7 +53,7 @@ bots:
     tmux:
       session: cc-qa
     agent_config:
-      skills: [dev-test, review-verify]
+      skills: [telegram-agent, dev-test, review-verify]
       memory: state/memory/qa.md
     permissions:
       allowed_chats: [195061634]
@@ -64,7 +67,7 @@ bots:
     tmux:
       session: cc-review
     agent_config:
-      skills: [review-code, dev-git]
+      skills: [telegram-agent, review-code, dev-git]
       memory: state/memory/review-git.md
       outputs: [confidence_score, commit_hash]
     permissions:

@@ -34,6 +34,39 @@ import {
   loadConfig,
   getWorkflow,
   getLimits,
+  getOrchestratorSettings,
+  getBotByRole
+} from './orchestration-config';
+
+import { injectTmuxCommand, TmuxTarget } from './tmux';
+
+import {
+  readQueue,
+  enqueueTask,
+  dequeueTask,
+  getQueueLength,
+  isQueueFull
+} from './queue-manager';
+
+import {
+  readAgentMemory,
+  appendAgentMemory,
+  readPrimaryMemory,
+  createProgressFile,
+  readProgressFile,
+  updateProgressFile
+} from './memory-manager';
+
+import {
+  createHandoff,
+  saveHandoff,
+  readHandoff
+} from './handoff';
+
+import {
+  loadConfig,
+  getWorkflow,
+  getLimits,
   getOrchestratorSettings
 } from './orchestration-config';
 
@@ -108,8 +141,107 @@ export async function runLoop(): Promise<void> {
  * Checks entry points for new tasks
  */
 async function checkEntryPoints(): Promise<void> {
-  // TODO: Implement file watcher for plan files
-  // TODO: Implement Telegram poll
+  // Check each agent's queue for new tasks
+  for (const agent of getCoreAgents()) {
+    const queueLength = getQueueLength(agent);
+
+    if (queueLength > 0) {
+      // Check if agent is busy
+      const busyWithTask = [...state.activeTasks.values()].find(t => t.agent === agent);
+
+      if (!busyWithTask) {
+        const task = dequeueTask(agent);
+
+        if (task) {
+          await assignTask(agent, task);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Assigns a task to an agent
+ */
+async function assignTask(agent: string, task: { id: string; planPath?: string; handoffPath?: string; workflow?: string }): Promise<void> {
+  const sessionName = `cc-${agent}`;
+  const config = loadConfig();
+  const botConfig = getBotByRole(agent);
+
+  console.log(`[Orchestrator] Assigning ${task.id} to ${agent}`);
+
+  // Create progress file
+  createProgressFile(agent, task.id, {
+    description: task.planPath || task.handoffPath || `Task ${task.id}`
+  });
+
+  // Track as active
+  state.activeTasks.set(task.id, {
+    agent,
+    status: 'IN_PROGRESS',
+    started: new Date().toISOString(),
+    workflow: task.workflow
+  });
+
+  // Build injection command
+  let injectCmd = '';
+  if (task.handoffPath) {
+    injectCmd = `/skill plan-execute --handoff ${task.handoffPath}`;
+  } else if (task.planPath) {
+    injectCmd = `/skill plan-execute --plan ${task.planPath}`;
+  } else {
+    injectCmd = `/skill plan-execute --task ${task.id}`;
+  }
+
+  // Inject task to agent tmux
+  try {
+    await injectTmuxCommand(
+      { session: sessionName, window: 0, pane: 0 },
+      injectCmd
+    );
+  } catch (error) {
+    console.error(`[Orchestrator] Failed to inject to ${sessionName}:`, error);
+    return;
+  }
+
+  // Send notification via orchestrator bot (pichu)
+  const orchestratorBot = getBotByRole('orchestrator');
+  const adminChat = orchestratorBot?.permissions?.admin_users?.[0];
+
+  if (adminChat) {
+    await sendNotification(`🔧 ${agent} assigned to ${task.id}`);
+  }
+}
+
+/**
+ * Sends a notification via gateway /reply endpoint
+ */
+async function sendNotification(text: string): Promise<void> {
+  const orchestratorBot = getBotByRole('orchestrator');
+  const adminChat = orchestratorBot?.permissions?.admin_users?.[0];
+
+  if (!adminChat) {
+    console.warn('[Orchestrator] No admin chat configured for notifications');
+    return;
+  }
+
+  try {
+    const response = await fetch('http://localhost:3100/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot_id: 'pichu',
+        chat_id: adminChat,
+        text
+      })
+    });
+
+    if (!response.ok) {
+      console.error('[Orchestrator] Failed to send notification:', await response.text());
+    }
+  } catch (error) {
+    console.error('[Orchestrator] Notification error:', error);
+  }
 }
 
 /**

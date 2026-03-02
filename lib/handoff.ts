@@ -11,7 +11,7 @@ export interface HandoffOptions {
   from: string;
   to: string;
   taskId: string;
-  status: 'COMPLETE' | 'BLOCKED' | 'FAILED';
+  status: 'IN_PROGRESS' | 'COMPLETE' | 'ISSUES_FOUND' | 'BLOCKED' | 'FAILED';
   confidence: number;
   summary: string;
   filesChanged?: string[];

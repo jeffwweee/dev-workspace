@@ -2,6 +2,30 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
+// Import status constants for internal use and re-export
+import {
+  STATUS_IN_PROGRESS,
+  STATUS_COMPLETE,
+  STATUS_ISSUES_FOUND,
+  STATUS_FAILED,
+  STATUS_BLOCKED,
+  type ProgressStatus,
+  isValidStatus,
+  getStatusAction
+} from './status-constants.js';
+
+// Re-export for convenience
+export {
+  STATUS_IN_PROGRESS,
+  STATUS_COMPLETE,
+  STATUS_ISSUES_FOUND,
+  STATUS_FAILED,
+  STATUS_BLOCKED,
+  type ProgressStatus,
+  isValidStatus,
+  getStatusAction
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -87,7 +111,7 @@ export function createProgressFile(agent: string, taskId: string, taskInfo: { de
   const content = `# Progress: ${taskId}
 
 **Agent:** ${agent}
-**Status:** IN_PROGRESS
+**Status:** ${STATUS_IN_PROGRESS}
 **Started:** ${new Date().toISOString()}
 
 ## Task Description
@@ -120,6 +144,11 @@ export function updateProgressFile(agent: string, taskId: string, updates: { sta
   let content = fs.readFileSync(progressPath, 'utf-8');
 
   if (updates.status) {
+    // Validate status
+    if (!isValidStatus(updates.status)) {
+      console.error(`[MemoryManager] Invalid status: ${updates.status}. Valid values: ${STATUS_IN_PROGRESS}, ${STATUS_COMPLETE}, ${STATUS_ISSUES_FOUND}, ${STATUS_FAILED}, ${STATUS_BLOCKED}`);
+      return false;
+    }
     content = content.replace(/\*\*Status:\*\* \w+/, `**Status:** ${updates.status}`);
   }
 

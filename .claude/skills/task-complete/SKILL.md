@@ -152,13 +152,19 @@ Before cleanup, update the progress file so the orchestrator can create handoffs
 # Update progress status to COMPLETE
 # The orchestrator monitors progress files and triggers handoffs when status = COMPLETE
 npx tsx -e "
-import { updateProgressFile } from './lib/memory-manager.js';
+import { updateProgressFile, STATUS_COMPLETE } from './lib/memory-manager.js';
 updateProgressFile('agent-name', 'TASK-XXX', {
-  status: 'COMPLETE',
+  status: STATUS_COMPLETE,  // Use constant for correctness
   log: 'Task completed successfully'
 });
 "
 ```
+
+**IMPORTANT: Use `COMPLETE` NOT `COMPLETED`!**
+
+The orchestrator checks for `=== 'COMPLETE'`. Using `COMPLETED` will cause the task to never be detected as complete.
+
+**See:** `docs/status-reference.md` for complete status documentation.
 
 **For multi-agent pipeline:** This signals the orchestrator to:
 1. Create handoff document

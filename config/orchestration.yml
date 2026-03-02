@@ -72,7 +72,7 @@ bots:
       session: cc-review
     agent_config:
       persona: telegram-agent
-      role_skill: qa-developer  # Uses QA skills for review workflow
+      role_skill: review-git-developer
       memory: state/memory/review-git.md
       outputs: [confidence_score, commit_hash]
     permissions:
@@ -81,17 +81,17 @@ bots:
 
 workflows:
   default:
-    pipeline: [backend, review-git, frontend, review-git, qa]
+    pipeline: [backend, qa, review-git, frontend, qa, review-git]
     review_threshold: 0.8
     max_retries: 3
     retry_backoff_base_ms: 30000
 
   backend_only:
-    pipeline: [backend, review-git, qa]
+    pipeline: [backend, qa, review-git]
     review_threshold: 0.85
 
   frontend_only:
-    pipeline: [frontend, review-git, qa]
+    pipeline: [frontend, qa, review-git]
     review_threshold: 0.75
 
 limits:

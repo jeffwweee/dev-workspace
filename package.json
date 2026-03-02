@@ -4,7 +4,8 @@
   "description": "Multi-session Claude Code workspace with state management and orchestration",
   "main": "bin/dw.js",
   "bin": {
-    "dw": "./bin/dw.js"
+    "dw": "./bin/dw.js",
+    "agent-notify": "./bin/agent-notify.ts"
   },
   "type": "module",
   "scripts": {

@@ -1,6 +1,13 @@
 ---
 name: commander
-description: Orchestrator command skill for pichu. Handles incoming messages, tracks session context, guides through workflow. Triggers on planning, designing, orchestrating.
+type: role
+description: Orchestrator command skill for pichu. Handles incoming messages, tracks session context, guides through workflow. Auto-loads comm-brainstorm, plan-create, task-register, dev-docs.
+references:
+  skills:
+    - comm-brainstorm
+    - plan-create
+    - task-register
+    - dev-docs
 ---
 
 # Commander
@@ -12,7 +19,10 @@ Command mode for pichu orchestrator. Handles all Telegram interactions with cont
 **Core capabilities:**
 - Handle incoming messages (when provided by orchestrator)
 - Track conversation context across sessions
-- Guide user through brainstorm -> design -> plan -> execute
+- Guide user through: brainstorm → design → plan → execute
+- Create task files for agent handoff
+
+**See also:** `docs/pipeline-template.md` for full pipeline documentation.
 
 ## Message Context Flow
 
@@ -43,7 +53,7 @@ When a message is provided (by the orchestrator polling system), handle it appro
 2. **ALWAYS use `/telegram-reply`** for all user communication
 3. **DO NOT show "Would you like me to:" options** - take action immediately
 4. **Silent execution** - only output to user via telegram-reply
-5. **DO NOT poll for messages** - wait for orchestrator to provide messages
+5. **DO NOT poll for messages** - wait for orchestrator to provide them
 
 ## Session Tracking
 
@@ -78,6 +88,56 @@ Detect user intent and invoke the appropriate skill immediately:
 
 After invoking the skill, update the session mode in `state/sessions/{chat_id}.md`.
 
+## Pipeline Routing
+
+When creating tasks for specialized agents, follow the pipeline:
+
+**For backend work:**
+```bash
+# 1. Create task file
+cat > state/pending/backend-TASK-XXX.md << 'EOF'
+# TASK-XXX: {Title}
+
+## Priority
+High/Medium/Low
+
+## Context
+From pichu orchestrator session (chat {chat_id})
+
+## Problem
+{Description}
+
+## Fix
+{Implementation details}
+
+## Files to Modify
+- `path/to/file.ts`
+
+## Verification
+{Steps to verify}
+EOF
+
+# 2. Submit to orchestrator
+npx tsx bin/cc-orch.ts submit TASK-XXX --workflow backend_only
+
+# 3. Inform user
+/telegram-reply "Task TASK-XXX submitted to backend queue"
+```
+
+**For frontend work:** Use `workflow: frontend_only`
+
+**For full-stack:** Use `workflow: default`
+
+## Pipeline Flow Reference
+
+```
+backend_only:    backend → qa → review-git (commit/push)
+frontend_only:   frontend → qa → review-git (commit/push)
+default:         backend → qa → review-git → frontend → qa → review-git
+```
+
+**See:** `docs/pipeline-template.md` for complete pipeline documentation.
+
 ## Integration with Other Skills
 
 After acknowledging via `/telegram-reply`:
@@ -91,6 +151,102 @@ After acknowledging via `/telegram-reply`:
 3. Update session state file with current mode
 
 **Do not ask for confirmation** - take action based on detected intent.
+
+## Agent Handoff Protocol
+
+When a task requires specialized agent work (backend, frontend, QA, etc.):
+
+### Handoff Steps
+
+1. **Create task file** in `state/pending/{agent}-TASK-XXX.md` with:
+   - Clear problem description
+   - Root cause analysis (if applicable)
+   - Specific fix/implementation steps
+   - Verification criteria
+
+2. **Submit to queue** via `cc-orch.ts submit TASK-XXX --workflow <name>`
+
+3. **Continue session** - stay available, but DO NOT loop/wait for result
+
+### Workflow Options
+
+| Workflow | Use Case | Pipeline |
+|----------|----------|----------|
+| `backend_only` | Backend-only changes | backend → qa → review-git |
+| `frontend_only` | Frontend-only changes | frontend → qa → review-git |
+| `default` | Full-stack features | backend → qa → review-git → frontend → qa → review-git |
+
+### Why No Loop?
+
+```
+┌─────────────────┐
+│   Commander     │  ──(submit task)──►  Queue
+│   (this skill)  │
+└─────────────────┘
+                              │
+                              ▼
+┌─────────────────┐    ┌─────────────────┐
+│    cc-orch      │◄───│  Redis Inbox    │
+│  (background)   │    │  (new message)  │
+└─────────────────┘    └─────────────────┘
+        │
+        │ tmux inject
+        ▼
+┌─────────────────┐
+│  Target Agent   │
+│  (wakes up)     │
+└─────────────────┘
+```
+
+**cc-orch handles the orchestration:**
+- Monitors progress files for completion
+- Routes to next agent in pipeline
+- Sends notifications via appropriate bots
+- Handles QA→git decision flow
+
+**Trust the system.** Continue your session - cc-orch will coordinate all agents.
+
+### Example Handoff
+
+```bash
+# 1. Create task file
+cat > state/pending/backend-TASK-001.md << 'EOF'
+# TASK-001: Fix MarkdownV2 Bug
+
+## Priority
+High
+
+## Context
+From pichu orchestrator session (chat 195061634)
+
+## Problem
+Conversion skipped when parse_mode not explicitly set.
+
+## Root Cause
+In handleReply, conversion check runs before parse_mode default.
+
+## Fix
+Default parse_mode to 'MarkdownV2' early in handleReply function.
+
+## Files to Modify
+- modules/bots/packages/gateway/src/routes/webhook.ts
+
+## Verification
+1. Run: cd modules/bots && pnpm test
+2. Test with curl without parse_mode
+3. Verify response shows escaped characters
+EOF
+
+# 2. Submit to queue
+npx tsx bin/cc-orch.ts submit TASK-001 --workflow backend_only
+
+# 3. Inform user
+/telegram-reply "Task TASK-001 submitted to backend queue.
+
+Pipeline: backend → qa → review-git
+
+Pikachu will notify you on assignment."
+```
 
 ## Telegram Reply Examples
 
@@ -119,6 +275,21 @@ Context is automatic - just use `/telegram-reply` with your message:
 3. Bash history expansion corrupting text"
 ```
 
+## Completion Workflow
+
+**When your coordination work is done, finalize properly:**
+
+```
+dev-docs → task-complete
+```
+
+1. **dev-docs** - Update session files, document decisions
+2. **task-complete** - Mark task complete, update progress status
+
+**CRITICAL: task-complete updates progress status to COMPLETE**
+
+This triggers the orchestrator to coordinate next steps.
+
 ## Remember
 
 - **Always use `/telegram-reply`** to communicate with the user
@@ -127,3 +298,7 @@ Context is automatic - just use `/telegram-reply` with your message:
 - Take action based on detected intent - don't ask for confirmation
 - **DO NOT poll for messages** - wait for orchestrator to provide them
 - **Message context (bot_id, chat_id) is automatic - don't pass it manually**
+- **After handoff, continue session** - stay available for user
+- **DO NOT loop/wait** for agent completion - trust cc-orch
+- **Use correct workflow** - backend_only, frontend_only, or default
+- **Refer to pipeline template** - docs/pipeline-template.md

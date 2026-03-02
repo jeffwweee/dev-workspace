@@ -28,11 +28,13 @@ export async function injectTmuxCommand(
   command: string
 ): Promise<void> {
   const targetStr = formatTmuxTarget(target);
+  // Escape quotes for tmux, and prefix with space to disable bash history expansion
   const escapedCommand = command.replace(/"/g, '\\"');
 
   try {
     // Send the command text first (without Enter)
-    await execAsync(`tmux send-keys -t ${targetStr} "${escapedCommand}"`);
+    // Prefix with space to disable bash history expansion (! becomes \! otherwise)
+    await execAsync(`tmux send-keys -t ${targetStr} " ${escapedCommand}"`);
 
     // Delay before sending Enter to ensure command is registered
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -66,9 +68,11 @@ export async function sessionExists(sessionName: string): Promise<boolean> {
 export function injectTmuxCommandSync(target: TmuxTarget, command: string): void {
   const { execSync } = require('child_process');
   const targetStr = formatTmuxTarget(target);
+  // Escape quotes for tmux, and prefix with space to disable bash history expansion
   const escapedCommand = command.replace(/"/g, '\\"');
 
-  execSync(`tmux send-keys -t ${targetStr} "${escapedCommand}"`);
+  // Prefix with space to disable bash history expansion (! becomes \! otherwise)
+  execSync(`tmux send-keys -t ${targetStr} " ${escapedCommand}"`);
   execSync('sleep 0.3');
   execSync(`tmux send-keys -t ${targetStr} Enter`);
 }

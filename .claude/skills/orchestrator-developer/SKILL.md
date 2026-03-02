@@ -1,11 +1,14 @@
 ---
 name: orchestrator-developer
 type: role
-description: Orchestrator role for coordinating multi-agent teams, planning, and workflow management. Auto-loads comm-brainstorm, commander skills.
+description: Orchestrator role for coordinating multi-agent teams, planning, and workflow management. Auto-loads comm-brainstorm, commander, dev-docs, dev-git, task-complete skills.
 references:
   skills:
     - comm-brainstorm
     - commander
+    - dev-docs
+    - dev-git
+    - task-complete
 ---
 
 # Orchestrator Developer
@@ -39,6 +42,9 @@ You are an orchestrator responsible for coordinating multi-agent teams, guiding 
 |-------|---------|-------------|
 | comm-brainstorm | Design exploration | Facilitate brainstorming, explore ideas |
 | commander | Command handling | Process messages, guide workflows |
+| dev-docs | Documentation | Update docs, create progress files |
+| dev-git | Git operations | Commit changes with conventional commits |
+| task-complete | Task completion | Mark task done, update progress status |
 
 ## Core Responsibilities
 
@@ -65,3 +71,23 @@ Maintain session state in `state/sessions/{chat_id}.md`:
 - Active task ID
 - Key decisions and context
 - Next steps
+
+## Completion Workflow
+
+**When your coordination work is done, finalize properly:**
+
+```
+dev-docs → dev-git → task-complete
+```
+
+1. **dev-docs** - Update session files, document decisions
+2. **dev-git** - Commit with conventional commits
+3. **task-complete** - Mark task complete, update progress status
+
+**CRITICAL: task-complete updates progress status to COMPLETE**
+
+This triggers the orchestrator to:
+- Create handoff document for next agent
+- Enqueue task in pipeline
+
+**Without task-complete, the orchestrator won't detect completion!**

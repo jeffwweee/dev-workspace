@@ -142,7 +142,29 @@ git branch -D <feature-branch>
 
 Then: Cleanup worktree and release lock (Step 5)
 
-### Step 5: Cleanup and Release
+### Step 5: Update Progress Status
+
+**CRITICAL: Mark task as COMPLETE for orchestrator handoff.**
+
+Before cleanup, update the progress file so the orchestrator can create handoffs:
+
+```bash
+# Update progress status to COMPLETE
+# The orchestrator monitors progress files and triggers handoffs when status = COMPLETE
+npx tsx -e "
+import { updateProgressFile } from './lib/memory-manager.js';
+updateProgressFile('agent-name', 'TASK-XXX', {
+  status: 'COMPLETE',
+  log: 'Task completed successfully'
+});
+"
+```
+
+**For multi-agent pipeline:** This signals the orchestrator to:
+1. Create handoff document
+2. Enqueue task for next agent in pipeline
+
+### Step 6: Cleanup and Release
 
 **For Options 1, 2, 4:**
 
@@ -164,16 +186,16 @@ node bin/dw.js release --all
 node bin/dw.js record-result --task TASK-XXX --status passed --pr https://github.com/.../pull/42
 ```
 
-**For Option 3:** Keep worktree and lock.
+**For Option 3:** Keep worktree and lock. Still update progress status to COMPLETE.
 
 ## Quick Reference
 
-| Option | Merge | Push | Keep Worktree | Keep Lock | Cleanup Branch |
-|--------|-------|------|---------------|-----------|----------------|
-| 1. Merge locally | Yes | - | No | No | Yes |
-| 2. Create PR | - | Yes | No | No | No |
-| 3. Keep as-is | - | - | Yes | Yes | No |
-| 4. Discard | - | - | No | No | Yes (force) |
+| Option | Merge | Push | Keep Worktree | Keep Lock | Cleanup Branch | Update Progress |
+|--------|-------|------|---------------|-----------|----------------|-----------------|
+| 1. Merge locally | Yes | - | No | No | Yes | Yes |
+| 2. Create PR | - | Yes | No | No | No | Yes |
+| 3. Keep as-is | - | - | Yes | Yes | No | Yes |
+| 4. Discard | - | - | No | No | Yes (force) | Yes |
 
 ## Dev-Workspace Session Flow
 
@@ -182,13 +204,31 @@ node bin/dw.js record-result --task TASK-XXX --status passed --pr https://github
     ↓
 task-complete
     ↓
+Step 5: Update progress status → COMPLETE
+    ↓
 Option 1: Merge → git merge → cleanup → release
 Option 2: PR → gh pr create → cleanup → release + record-result
-Option 3: Keep → done (lock still held)
+Option 3: Keep → done (lock still held, but status = COMPLETE)
 Option 4: Discard → confirm → cleanup → release
     ↓
 node bin/dw.js release --all
+    ↓
+[Orchestrator detects COMPLETE → creates handoff → enqueues next agent]
 ```
+
+## Multi-Agent Pipeline Integration
+
+When working in a multi-agent pipeline (backend → frontend → qa):
+
+1. **Agent completes work** → Calls task-complete
+2. **task-complete** → Updates progress status to COMPLETE
+3. **Orchestrator** → Detects COMPLETE on next loop
+4. **Orchestrator** → Creates handoff document
+5. **Orchestrator** → Enqueues task for next agent in pipeline
+
+**Progress file location:** `state/progress/{TASK-ID}.md`
+
+**Handoff file location:** `state/progress/HANDOFF_{TASK-ID}_{from}_to_{to}.md`
 
 ## Common Mistakes
 
@@ -222,6 +262,7 @@ node bin/dw.js release --all
 - Present exactly 4 options
 - Get typed confirmation for Option 4
 - Release lock after work is complete (except Option 3)
+- **Update progress status to COMPLETE** (triggers orchestrator handoff)
 
 ## Integration
 

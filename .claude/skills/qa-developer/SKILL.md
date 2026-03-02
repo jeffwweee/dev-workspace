@@ -61,8 +61,17 @@ review-code → dev-test → review-verify → dev-docs → dev-git → task-com
 5. **dev-git** - Commit with conventional commits
 6. **task-complete** - Mark task complete, handle integration
 
+**CRITICAL: task-complete updates progress status to COMPLETE**
+
+This triggers the orchestrator to:
+- Create handoff document for next agent in pipeline
+- Enqueue task for next stage
+
+**Without task-complete, the orchestrator won't detect completion!**
+
 ## Critical Rules
 
 - **Never skip verification** - Always run tests and verify before completion
 - **Evidence before assertions** - Provide proof of success
 - **Document decisions** - Record what was done and why
+- **Always run task-complete** - Must update progress status for orchestrator

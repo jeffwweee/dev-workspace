@@ -48,6 +48,112 @@ import {
 import { getReferencedSkills } from './role-loader.js';
 
 import { injectTmuxCommand, TmuxTarget } from './tmux';
+import Redis from 'ioredis';
+
+/**
+ * Orchestrator hook event types
+ */
+export type OrchestratorEvent =
+  | 'task_assigned'      // Agent assigned to task
+  | 'task_complete'      // Task fully complete
+  | 'task_transition'    // Task moving from one agent to another
+  | 'task_revision'      // Task sent back for revision
+  | 'task_failed'        // Task failed
+  | 'git_decision';      // Git decision notification
+
+export interface OrchestratorHookPayload {
+  event: OrchestratorEvent;
+  taskId: string;
+  agent?: string;
+  nextAgent?: string;
+  previousAgent?: string;
+  details?: string;
+  timestamp: number;
+}
+
+export type OrchestratorHook = (payload: OrchestratorHookPayload) => Promise<void> | void;
+
+// Registered hooks
+const orchestratorHooks: OrchestratorHook[] = [];
+
+/**
+ * Register a hook for orchestrator events
+ */
+export function registerHook(hook: OrchestratorHook): void {
+  orchestratorHooks.push(hook);
+}
+
+/**
+ * Trigger hooks for an event
+ */
+async function triggerHooks(event: OrchestratorEvent, data: Omit<OrchestratorHookPayload, 'event' | 'timestamp'>): Promise<void> {
+  const payload: OrchestratorHookPayload = {
+    event,
+    ...data,
+    timestamp: Date.now()
+  };
+
+  for (const hook of orchestratorHooks) {
+    try {
+      await hook(payload);
+    } catch (error) {
+      console.error(`[Orchestrator] Hook error for ${event}:`, error);
+    }
+  }
+}
+
+/**
+ * Default notification hook - sends Telegram notifications for orchestrator events
+ */
+function registerDefaultNotificationHook(): void {
+  registerHook(async (payload: OrchestratorHookPayload) => {
+    const orchestratorBot = getBotByRole('orchestrator');
+    const adminChat = orchestratorBot?.permissions?.admin_users?.[0];
+
+    if (!adminChat) {
+      console.warn('[Orchestrator] No admin chat configured for notifications');
+      return;
+    }
+
+    let text = '';
+    switch (payload.event) {
+      case 'task_assigned':
+        text = `🔧 ${payload.agent} assigned to ${payload.taskId}`;
+        break;
+      case 'task_complete':
+        text = `✅ ${payload.taskId} complete!`;
+        break;
+      case 'task_transition':
+        text = `📤 ${payload.taskId}: ${payload.agent} → ${payload.nextAgent}`;
+        break;
+      case 'task_revision':
+        text = `🔄 ${payload.taskId}: ${payload.agent} → ${payload.previousAgent} (revision needed)`;
+        break;
+      case 'task_failed':
+        text = `❌ ${payload.taskId} failed\n\nAgent: ${payload.agent}\nError: ${payload.details || 'Unknown error'}\n\nManual intervention required.`;
+        break;
+      case 'git_decision':
+        text = `✅ ${payload.taskId} fully complete!`;
+        break;
+    }
+
+    if (text) {
+      await sendNotification(text);
+    }
+  });
+}
+
+// Bot routing map: botId -> { tmux session, inject command }
+const BOT_ROUTING: Record<string, { session: string; command: string }> = {
+  'pichu': { session: 'cc-orchestrator', command: '/commander' },
+  'pikachu': { session: 'cc-backend', command: '/backend-handler' },
+  'raichu': { session: 'cc-frontend', command: '/frontend-handler' },
+  'bulbasaur': { session: 'cc-qa', command: '/qa-handler' },
+  'charmander': { session: 'cc-review-git', command: '/review-git-handler' },
+};
+
+// Global Redis client for Telegram pub/sub
+let redisClient: Redis | null = null;
 
 export interface OrchestratorState {
   isRunning: boolean;
@@ -68,6 +174,9 @@ const state: OrchestratorState = {
  */
 export async function initialize(): Promise<void> {
   console.log('[Orchestrator] Initializing...');
+
+  // Register default notification hook
+  registerDefaultNotificationHook();
 
   // Ensure core agents are running
   for (const agent of getCoreAgents()) {
@@ -98,6 +207,40 @@ export async function initialize(): Promise<void> {
 export async function runLoop(): Promise<void> {
   const config = loadConfig();
 
+  // Initialize Redis client for Telegram pub/sub
+  redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+  // Create consumer groups for each bot's inbox stream
+  for (const botId of Object.keys(BOT_ROUTING)) {
+    const streamKey = `tg:inbox:${botId}`;
+    const groupName = `orchestrator-${botId}`;
+    try {
+      await redisClient.xgroup('CREATE', streamKey, groupName, '$', 'MKSTREAM');
+      console.log(`[Orchestrator] Created Redis consumer group: ${groupName} for ${streamKey}`);
+    } catch (e: any) {
+      if (!e.message.includes('BUSYGROUP')) {
+        console.error(`[Orchestrator] Consumer group creation error for ${botId}:`, e.message);
+      }
+    }
+  }
+
+  // Subscribe to notification channel for instant routing
+  const subscriber = redisClient.duplicate();
+  await subscriber.subscribe('tg:notify');
+
+  subscriber.on('message', async (channel, message) => {
+    if (channel !== 'tg:notify') return;
+
+    try {
+      const notification = JSON.parse(message);
+      await routeMessageToAgent(notification);
+    } catch (error) {
+      console.error('[Orchestrator] Notification handling error:', error);
+    }
+  });
+
+  console.log('[Orchestrator] Subscribed to tg:notify for instant message routing');
+
   while (state.isRunning) {
     state.loopCount++;
     console.log(`\n[Orchestrator] Loop ${state.loopCount} - ${new Date().toISOString()}`);
@@ -118,6 +261,108 @@ export async function runLoop(): Promise<void> {
 
     // Sleep until next iteration
     await sleep(config.orchestrator.loop_interval_ms);
+  }
+
+  // Cleanup
+  await subscriber.unsubscribe();
+  await subscriber.quit();
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+  }
+}
+
+/**
+ * Routes a message from Telegram to the correct agent via tmux injection
+ */
+async function routeMessageToAgent(notification: { botId: string; chatId: number; messageId: string; timestamp: number }): Promise<void> {
+  const { botId, chatId, messageId } = notification;
+
+  if (!redisClient) {
+    console.error('[Orchestrator] Redis client not initialized');
+    return;
+  }
+
+  const routing = BOT_ROUTING[botId];
+  if (!routing) {
+    console.warn(`[Orchestrator] No routing configured for bot: ${botId}`);
+    return;
+  }
+
+  console.log(`[Orchestrator] Routing message for ${botId} to ${routing.session}`);
+
+  // Read the message from bot-specific stream
+  const streamKey = `tg:inbox:${botId}`;
+  const groupName = `orchestrator-${botId}`;
+  const consumerName = `orchestrator-${Date.now()}`;
+
+  try {
+    const results = await redisClient.call(
+      'XREADGROUP',
+      'GROUP',
+      groupName,
+      consumerName,
+      'COUNT',
+      '1',
+      'STREAMS',
+      streamKey,
+      messageId
+    ) as any;
+
+    if (!results || results.length === 0) {
+      console.log(`[Orchestrator] No message found at ${messageId} in ${streamKey}`);
+      return;
+    }
+
+    // Parse the message
+    const streamResult = results[0] as unknown[];
+    const messages = streamResult[1] as unknown[];
+    const messageData = messages[0] as unknown[];
+    const inboxId = String(messageData[0]);
+    const fields: Record<string, string> = {};
+    const fieldPairs = messageData[1] as unknown[];
+    if (Array.isArray(fieldPairs)) {
+      for (let i = 0; i < fieldPairs.length; i += 2) {
+        fields[String(fieldPairs[i])] = String(fieldPairs[i + 1]);
+      }
+    }
+
+    const text = fields.text || '';
+    const userId = fields.user_id || fields.userId || 'unknown';
+    const username = fields.username;
+    const chatType = fields.chat_type || 'private';
+    const replyTo = fields.reply_to ? parseInt(fields.reply_to) : undefined;
+
+    // Store message context in Redis for telegram-reply skill to use
+    // Format: tg:inbox:context:{botId} (botId is used as sessionId)
+    const contextKey = `tg:inbox:context:${botId}`;
+    const context = {
+      messageId: inboxId,
+      botId,
+      chatId,
+      userId,
+      text,
+      username,
+      chatType,
+      replyTo,
+    };
+    await redisClient.setex(contextKey, 3600, JSON.stringify(context)); // 1 hour TTL
+
+    // Inject to agent's tmux session
+    const escapedText = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const injectCmd = `${routing.command} --message "${escapedText}"`;
+
+    await injectTmuxCommand(
+      { session: routing.session, window: 0, pane: 0 },
+      injectCmd
+    );
+
+    console.log(`[Orchestrator] Injected message to ${routing.session}`);
+
+    // Acknowledge the message
+    await redisClient.xack(streamKey, groupName, inboxId);
+  } catch (error) {
+    console.error(`[Orchestrator] Error routing message for ${botId}:`, error);
   }
 }
 
@@ -194,13 +439,11 @@ async function assignTask(agent: string, task: { id: string; planPath?: string; 
     return;
   }
 
-  // Send notification via orchestrator bot (pichu)
-  const orchestratorBot = getBotByRole('orchestrator');
-  const adminChat = orchestratorBot?.permissions?.admin_users?.[0];
-
-  if (adminChat) {
-    await sendNotification(`🔧 ${agent} assigned to ${task.id}`);
-  }
+  // Trigger task_assigned hook
+  await triggerHooks('task_assigned', {
+    taskId: task.id,
+    agent
+  });
 }
 
 /**
@@ -272,8 +515,17 @@ async function handleTaskComplete(taskId: string, taskInfo: { agent: string; wor
     console.log(`[Orchestrator] Git decision complete for ${originalTaskId}`);
     console.log(`[Orchestrator] Task ${originalTaskId} fully complete!`);
 
-    // Send completion notification with original task ID
-    await sendNotification(`✅ ${originalTaskId} fully complete!`);
+    // Trigger git_decision hook
+    await triggerHooks('git_decision', {
+      taskId: originalTaskId,
+      agent: taskInfo.agent
+    });
+
+    // Trigger task_complete hook
+    await triggerHooks('task_complete', {
+      taskId: originalTaskId,
+      agent: taskInfo.agent
+    });
 
     state.activeTasks.delete(taskId);
     return;
@@ -286,8 +538,11 @@ async function handleTaskComplete(taskId: string, taskInfo: { agent: string; wor
     // Task fully complete
     console.log(`[Orchestrator] Task ${taskId} fully complete!`);
 
-    // Send completion notification
-    await sendNotification(`✅ ${taskId} complete!`);
+    // Trigger task_complete hook
+    await triggerHooks('task_complete', {
+      taskId,
+      agent: taskInfo.agent
+    });
 
     state.activeTasks.delete(taskId);
     return;
@@ -323,8 +578,12 @@ async function handleTaskComplete(taskId: string, taskInfo: { agent: string; wor
   if (enqueueResult.success) {
     console.log(`[Orchestrator] Queued ${taskId} for ${nextAgent}`);
 
-    // Send stage transition notification
-    await sendNotification(`📤 ${taskId}: ${taskInfo.agent} → ${nextAgent}`);
+    // Trigger task_transition hook
+    await triggerHooks('task_transition', {
+      taskId,
+      agent: taskInfo.agent,
+      nextAgent
+    });
   }
 
   state.activeTasks.delete(taskId);
@@ -370,7 +629,13 @@ async function handleIssuesFound(taskId: string, taskInfo: { agent: string; work
 
   if (enqueueResult.success) {
     console.log(`[Orchestrator] Routed ${taskId} back to ${previousAgent} for revision`);
-    await sendNotification(`🔄 ${taskId}: ${taskInfo.agent} → ${previousAgent} (revision needed)`);
+
+    // Trigger task_revision hook
+    await triggerHooks('task_revision', {
+      taskId,
+      agent: taskInfo.agent,
+      previousAgent
+    });
   }
 
   state.activeTasks.delete(taskId);
@@ -385,7 +650,12 @@ async function handleTaskFailed(taskId: string, taskInfo: { agent: string; workf
   const progress = readProgressFile(taskInfo.agent, taskId);
   const errorInfo = progress?.raw.match(/## Error\n\n(.+?)\n\n/)?.[1] || 'Unknown error';
 
-  await sendNotification(`❌ ${taskId} failed\n\nAgent: ${taskInfo.agent}\nError: ${errorInfo}\n\nManual intervention required.`);
+  // Trigger task_failed hook
+  await triggerHooks('task_failed', {
+    taskId,
+    agent: taskInfo.agent,
+    details: errorInfo
+  });
 
   state.activeTasks.delete(taskId);
 }

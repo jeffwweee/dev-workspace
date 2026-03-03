@@ -13,6 +13,7 @@
  */
 
 import { Command } from 'commander';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -72,6 +73,19 @@ function detectAgentRole(): string {
       'charmander': 'review-git',
     };
     return roleMap[agentName] || agentName;
+  }
+
+  // Fallback: Check tmux session name
+  try {
+    const sessionOutput = execSync('tmux display-message -p "#S" 2>/dev/null', { encoding: 'utf-8' });
+    const sessionName = sessionOutput.trim();
+    // cc-backend -> backend, cc-qa -> qa, cc-orchestrator -> orchestrator, etc.
+    const roleMatch = sessionName.match(/^cc-(.+)$/);
+    if (roleMatch) {
+      return roleMatch[1];
+    }
+  } catch {
+    // tmux not available or not in a session
   }
 
   // Default to orchestrator

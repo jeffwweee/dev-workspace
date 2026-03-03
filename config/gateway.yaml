@@ -21,7 +21,7 @@ bots:
       session: "cc-orchestrator"
       window: 0
       pane: 0
-    wake_command: "/telegram-agent --poll --name pichu"
+    wake_command: "/telegram-agent --name pichu --who 'orchestrator assistant'"
     permissions:
       allowed_chats: [195061634, -5237869444]
       admin_users: [195061634]

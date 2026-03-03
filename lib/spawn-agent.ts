@@ -122,8 +122,9 @@ export function spawnAgent(options: SpawnOptions): SpawnResult {
   }
 
   // Start Claude with CLAUDECODE unset (workaround for nested sessions)
-  // Initial prompt is passed directly as CLI argument
-  const startCmd = `env -u CLAUDECODE claude --dangerously-skip-permissions --model ${model} ${initialPrompt}`;
+  // Set AGENT_NAME and AGENT_ROLE for agent-notify.ts to detect identity
+  const envVars = `AGENT_NAME=${name} AGENT_ROLE=${name}`;
+  const startCmd = `env -u CLAUDECODE ${envVars} claude --dangerously-skip-permissions --model ${model} ${initialPrompt}`;
   execSync(`tmux send-keys -t ${sessionName} '${startCmd}' Enter`);
 
   // Minimal wait for tmux to process

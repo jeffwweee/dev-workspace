@@ -1,0 +1,83 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROGRESS_DIR = path.join(__dirname, '..', 'state', 'progress');
+/**
+ * Creates a handoff document
+ */
+export function createHandoff(options) {
+    const { from, to, taskId, status, confidence, summary, filesChanged = [], learnings = [], blockers = 'None', recommendations = [] } = options;
+    return `# HANDOFF: ${from} → ${to}
+
+## Task: ${taskId}
+## Status: ${status}
+## Confidence: ${confidence}
+
+## Summary
+${summary}
+
+## Files Changed
+${filesChanged.length > 0 ? filesChanged.map(f => `- ${f}`).join('\n') : '- None'}
+
+## Learnings for Next Agent
+${learnings.length > 0 ? learnings.map(l => `- ${l}`).join('\n') : '- None'}
+
+## Blockers (if any)
+${blockers}
+
+## Recommendations for Next Agent
+${recommendations.length > 0 ? recommendations.map(r => `- ${r}`).join('\n') : '- None'}
+
+---
+*Generated at: ${new Date().toISOString()}*
+`;
+}
+/**
+ * Saves a handoff document
+ */
+export function saveHandoff(handoff, taskId, from, to) {
+    const handoffPath = path.join(PROGRESS_DIR, `HANDOFF_${taskId}_${from}_to_${to}.md`);
+    fs.writeFileSync(handoffPath, handoff);
+    return handoffPath;
+}
+/**
+ * Reads a handoff document
+ */
+export function readHandoff(taskId, from, to) {
+    const handoffPath = path.join(PROGRESS_DIR, `HANDOFF_${taskId}_${from}_to_${to}.md`);
+    if (!fs.existsSync(handoffPath)) {
+        return null;
+    }
+    const content = fs.readFileSync(handoffPath, 'utf-8');
+    const statusMatch = content.match(/## Status: (\w+)/);
+    const confidenceMatch = content.match(/## Confidence: ([\d.]+)/);
+    const summaryMatch = content.match(/## Summary\n([\s\S]*?)(?=## Files Changed)/);
+    const learningsMatch = content.match(/## Learnings for Next Agent\n([\s\S]*?)(?=## Blockers)/);
+    return {
+        taskId,
+        from,
+        to,
+        status: statusMatch ? statusMatch[1] : 'UNKNOWN',
+        confidence: confidenceMatch ? parseFloat(confidenceMatch[1]) : 0,
+        summary: summaryMatch ? summaryMatch[1].trim() : '',
+        learnings: learningsMatch
+            ? learningsMatch[1].trim().split('\n').filter(l => l.startsWith('- ')).map(l => l.slice(2))
+            : [],
+        raw: content,
+        path: handoffPath
+    };
+}
+/**
+ * Lists all handoff documents for a task
+ */
+export function listHandoffs(taskId) {
+    if (!fs.existsSync(PROGRESS_DIR)) {
+        return [];
+    }
+    return fs.readdirSync(PROGRESS_DIR)
+        .filter(f => f.startsWith(`HANDOFF_${taskId}_`))
+        .map(f => path.join(PROGRESS_DIR, f));
+}
+//# sourceMappingURL=handoff.js.map

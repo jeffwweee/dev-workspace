@@ -1,0 +1,3 @@
+[submodule "modules/bots"]
+	path = modules/bots
+	url = https://github.com/jeffwweee/tg-bots.git

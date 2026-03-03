@@ -1,0 +1,27 @@
+# Agent Configuration
+# Maps agent names to persona + role combinations
+
+agents:
+  # Primary orchestrator
+  pichu:
+    persona: telegram-agent
+    role: orchestrator-developer
+    bot_config: pichu  # References gateway.yaml
+
+  # Backend specialist
+  pikachu:
+    persona: telegram-agent
+    role: backend-developer
+    bot_config: pikachu
+
+  # Frontend specialist
+  raichu:
+    persona: telegram-agent
+    role: frontend-developer
+    bot_config: raichu
+
+  # QA specialist (includes utility skills)
+  bulbasaur:
+    persona: telegram-agent
+    role: qa-developer
+    bot_config: bulbasaur

@@ -1,0 +1,254 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "skill.schema.json",
+  "title": "Smart Skill Configuration",
+  "description": "Schema for skill.json files that define smart skills with team compositions",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Skill identifier (lowercase, alphanumeric, hyphens only)"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of the skill"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (e.g., 1.0.0)"
+    },
+    "extends": {
+      "type": "string",
+      "pattern": "^workspace://[a-z0-9-]+$",
+      "description": "Reference to a workspace skill to extend (e.g., workspace://code-reviewer)"
+    },
+    "team": {
+      "type": "object",
+      "description": "Team composition for multi-agent execution",
+      "additionalProperties": false,
+      "properties": {
+        "orchestrator": {
+          "type": "object",
+          "description": "Orchestrator configuration",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["dynamic", "coordinator", "specialist", "foundation"],
+              "description": "Orchestrator type or specific agent ID"
+            },
+            "selection": {
+              "type": "object",
+              "description": "Dynamic selection rules for choosing orchestrator",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "description": "Team member configurations",
+          "items": {
+            "type": "object",
+            "required": ["role"],
+            "additionalProperties": false,
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "Role name (e.g., backend, frontend, tester)"
+              },
+              "agent": {
+                "type": "string",
+                "description": "Agent ID or 'dynamic' for adaptive selection"
+              },
+              "selection": {
+                "type": "object",
+                "description": "Dynamic selection rules based on context",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "required": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether this member is required"
+              },
+              "phase": {
+                "type": "string",
+                "enum": ["planning", "implementation", "verification", "any"],
+                "description": "Execution phase for this member"
+              },
+              "parallel_with": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Roles that can run in parallel with this one"
+              },
+              "depends_on": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Roles that must complete before this one starts"
+              }
+            }
+          }
+        }
+      }
+    },
+    "adaptive": {
+      "type": "object",
+      "description": "Adaptive team composition settings",
+      "additionalProperties": false,
+      "properties": {
+        "complexity": {
+          "type": "object",
+          "description": "Team size and roles based on task complexity",
+          "additionalProperties": false,
+          "properties": {
+            "small": {
+              "$ref": "#/definitions/complexityConfig"
+            },
+            "medium": {
+              "$ref": "#/definitions/complexityConfig"
+            },
+            "large": {
+              "$ref": "#/definitions/complexityConfig"
+            }
+          }
+        },
+        "add_on_demand": {
+          "type": "object",
+          "description": "Conditions for adding agents dynamically",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Context injection settings",
+      "additionalProperties": false,
+      "properties": {
+        "inject": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files to inject into agent context"
+        },
+        "working_directory": {
+          "type": "string",
+          "enum": ["worktree", "project", "workspace"],
+          "description": "Default working directory for the skill"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "description": "Validation requirements",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required validation checks"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Commands to run for validation"
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "Workflow configuration",
+      "additionalProperties": false,
+      "properties": {
+        "next_skill": {
+          "type": "string",
+          "description": "Skill to invoke after completion"
+        },
+        "modes": {
+          "type": "object",
+          "description": "Alternative execution modes",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata",
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags for categorization and search"
+        },
+        "project_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Compatible project types"
+        },
+        "estimated_duration": {
+          "type": "string",
+          "description": "Estimated execution duration"
+        },
+        "author": {
+          "type": "string",
+          "description": "Skill author"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      }
+    }
+  },
+  "required": ["name", "description"],
+  "definitions": {
+    "complexityConfig": {
+      "type": "object",
+      "description": "Configuration for a complexity level",
+      "properties": {
+        "max_members": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of team members"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Roles to include at this complexity level"
+        }
+      }
+    }
+  }
+}

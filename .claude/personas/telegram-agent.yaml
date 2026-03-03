@@ -1,0 +1,7 @@
+name: telegram-agent
+channel: telegram
+response_format: markdownv2
+auto_load: true
+skills:
+  - telegram-agent    # polling + identity
+  - telegram-reply    # formatted responses

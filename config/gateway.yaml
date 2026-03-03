@@ -1,0 +1,87 @@
+# config/gateway.yaml
+gateway:
+  port: 3100
+  host: "0.0.0.0"
+  redis:
+    url: "redis://localhost:6379"
+    inbox_stream: "tg:inbox"
+    outbox_channel: "tg:outbox"
+  message:
+    claim_timeout_ms: 30000
+    max_retries: 3
+    retry_delay_ms: 1000
+
+bots:
+  - name: "pichu"
+    username: "pichu_cc_bot"
+    token: "${PICHU_BOT_TOKEN}"
+    webhook_path: "/webhook/pichu"
+    role: "orchestrator"
+    tmux:
+      session: "cc-orchestrator"
+      window: 0
+      pane: 0
+    wake_command: "/telegram-agent --poll --name pichu"
+    permissions:
+      allowed_chats: [195061634, -5237869444]
+      admin_users: [195061634]
+
+  - name: "pikachu"
+    username: "pikachu_cc_bot"
+    token: "${PIKACHU_BOT_TOKEN}"
+    webhook_path: "/webhook/pikachu"
+    role: "backend"
+    tmux:
+      session: "cc-backend"
+      window: 0
+      pane: 0
+    wake_command: "/telegram-agent --poll --name pikachu"
+    permissions:
+      allowed_chats: [195061634, -5237869444]
+      admin_users: [195061634]
+
+  - name: "raichu"
+    username: "raichu_cc_bot"
+    token: "${RAICHU_BOT_TOKEN}"
+    webhook_path: "/webhook/raichu"
+    role: "frontend"
+    tmux:
+      session: "cc-frontend"
+      window: 0
+      pane: 0
+    wake_command: "/telegram-agent --poll --name raichu"
+    permissions:
+      allowed_chats: [195061634, -5237869444]
+      admin_users: [195061634]
+
+  - name: "bulbasaur"
+    username: "bulbasaur_cc_bot"
+    token: "${BULBASAUR_BOT_TOKEN}"
+    webhook_path: "/webhook/bulbasaur"
+    role: "qa"
+    tmux:
+      session: "cc-qa"
+      window: 0
+      pane: 0
+    wake_command: "/telegram-agent --poll --name bulbasaur"
+    permissions:
+      allowed_chats: [195061634, -5237869444]
+      admin_users: [195061634]
+
+  - name: "charmander"
+    username: "charmander_cc_bot"
+    token: "${CHARMANDER_BOT_TOKEN}"
+    webhook_path: "/webhook/charmander"
+    role: "review-git"
+    tmux:
+      session: "cc-review"
+      window: 0
+      pane: 0
+    wake_command: "/telegram-agent --poll --name charmander"
+    permissions:
+      allowed_chats: [195061634, -5237869444]
+      admin_users: [195061634]
+
+logging:
+  level: "info"
+  format: "pretty"

@@ -1,0 +1,18 @@
+server:
+  port: 3001
+  host: localhost
+
+redis:
+  url: "redis://localhost:6379"
+
+bots:
+  - name: pichu
+    role: orchestrator
+  - name: pikachu
+    role: backend
+  - name: raichu
+    role: frontend
+  - name: bulbasaur
+    role: qa
+  - name: charmander
+    role: review-git

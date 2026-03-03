@@ -152,7 +152,7 @@ async function publishToOutbox(botId: string, chatId: number, text: string, pars
     parse_mode: parseMode,
   });
 
-  await client.publish('outbox', message);
+  await client.publish('tg:outbox', message);
   await client.quit();
 }
 

@@ -407,48 +407,52 @@ async function notifyCharmanderForGitOps(taskId: string, taskInfo: { agent: stri
   // Parse fields from raw content
   const raw = progress.raw;
 
-  // Extract summary from Summary section
-  const summaryMatch = raw.match(/## Summary\n\n(.+?)(?=\n\n|$)/);
+  // Extract summary from Summary section (multiline support)
+  const summaryMatch = raw.match(/## Summary\n\n([\s\S]+?)(?=\n\n##|$)/);
   const summary = summaryMatch ? summaryMatch[1].trim() : 'Task completed';
 
   // Extract files changed from Files Changed section
-  const filesChangedSection = raw.match(/## Files Changed\n\n(.+?)(?=\n\n##|$)/);
+  const filesChangedSection = raw.match(/## Files Changed\n\n([\s\S]+?)(?=\n\n##|$)/);
   const filesChanged: string[] = [];
   if (filesChangedSection) {
-    const lines = filesChangedSection[1].split('\n');
-    for (const line of lines) {
-      // Try to match various markdown list formats
-      // Format 1: - `filename`
-      let match = line.match(/^-\s+`([^`]+)`/);
-      if (match) {
-        filesChanged.push(match[1].trim());
-        continue;
-      }
-      // Format 2: - **filename**
-      match = line.match(/^-\s+\*\*([^*]+)\*\*/);
-      if (match) {
-        filesChanged.push(match[1].trim());
-        continue;
-      }
-      // Format 3: - filename* (with trailing asterisk)
-      match = line.match(/^-\s+(\S+)\*/);
-      if (match) {
-        filesChanged.push(match[1].trim());
-        continue;
-      }
-      // Format 4: - filename (plain)
-      match = line.match(/^-\s+(.+)/);
-      if (match) {
-        const filename = match[1].trim().replace(/^`+|`+$/g, '').replace(/^\*\*+|\*\*+$/g, '');
-        if (filename) {
-          filesChanged.push(filename);
+    const content = filesChangedSection[1].trim();
+    // Skip if it says "None" or similar
+    if (!content.toLowerCase().startsWith('none') && content !== '-') {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        // Try to match various markdown list formats
+        // Format 1: - `filename`
+        let match = line.match(/^-\s+`([^`]+)`/);
+        if (match) {
+          filesChanged.push(match[1].trim());
+          continue;
+        }
+        // Format 2: - **filename**
+        match = line.match(/^-\s+\*\*([^*]+)\*\*/);
+        if (match) {
+          filesChanged.push(match[1].trim());
+          continue;
+        }
+        // Format 3: - filename* (with trailing asterisk)
+        match = line.match(/^-\s+(\S+)\*/);
+        if (match) {
+          filesChanged.push(match[1].trim());
+          continue;
+        }
+        // Format 4: - filename (plain)
+        match = line.match(/^-\s+(.+)/);
+        if (match) {
+          const filename = match[1].trim().replace(/^`+|`+$/g, '').replace(/^\*\*+|\*\*+$/g, '');
+          if (filename && !filename.toLowerCase().startsWith('none')) {
+            filesChanged.push(filename);
+          }
         }
       }
     }
   }
 
-  // Extract test results from Verification section
-  const verificationSection = raw.match(/## Verification\n\n(.+?)(?=\n\n##|$)/);
+  // Extract test results from Verification section (flexible header matching)
+  const verificationSection = raw.match(/## Verification[^\n]*\n\n([\s\S]+?)(?=\n\n##|$)/);
   const testResults = verificationSection ? verificationSection[1].trim() : 'No test results';
 
   // Format files list

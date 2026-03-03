@@ -1,7 +1,7 @@
 ---
 name: backend-handler
 type: role
-description: Backend task handler. Reads tasks from state/pending/, guides through implementation workflow, tracks progress. Auto-loads agent-notify, dev-test, review-code, review-verify, dev-docs, dev-git, task-complete.
+description: Backend task handler. Reads tasks from state/pending/, guides through implementation workflow, tracks progress. Auto-loads agent-notify, dev-test, review-code, review-verify, dev-docs, task-complete.
 references:
   skills:
     - agent-notify
@@ -9,7 +9,6 @@ references:
     - review-code
     - review-verify
     - dev-docs
-    - dev-git
     - task-complete
 ---
 
@@ -126,8 +125,8 @@ Follow this sequence strictly:
 │  5. COMPLETE                                                │
 │     - npx tsx bin/agent-notify.ts complete TASK-XXX --d     │
 │     - Use /dev-docs to update progress.md                   │
-│     - Use /dev-git to commit changes                        │
 │     - Use /task-complete to mark done                       │
+│     - [orchestrator routes to QA]                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -181,14 +180,12 @@ High/Medium/Low
    → Update state/progress/TASK-XXX.md with final summary
    → Update project-level docs if needed
 
-3. /dev-git
-   → Commit changes with conventional commit format
-   → Reference TASK-XXX in commit message
-
-4. /task-complete
-   → Mark task complete
-   → Status change triggers orchestrator handoff
+3. /task-complete
+   → Mark task complete (status = COMPLETE)
+   → Orchestrator routes to QA agent
 ```
+
+**Note:** Git operations (commit, push) are handled by review-git agent after QA approval.
 
 **CRITICAL: Without /task-complete, orchestrator won't detect completion!**
 
@@ -245,7 +242,6 @@ npx tsx bin/agent-notify.ts complete TASK-001 --details
 
 # 10. Finalize
 /dev-docs
-/dev-git
 /task-complete
 ```
 

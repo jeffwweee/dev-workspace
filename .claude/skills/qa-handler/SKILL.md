@@ -1,7 +1,7 @@
 ---
 name: qa-handler
 type: role
-description: QA task handler. Reads tasks from state/pending/, guides through testing and verification workflow, tracks progress. Auto-loads agent-notify, dev-test, review-code, review-verify, dev-docs, dev-git, task-complete.
+description: QA task handler. Reads tasks from state/pending/, guides through testing and verification workflow, tracks progress. Auto-loads agent-notify, dev-test, review-code, review-verify, dev-docs, task-complete.
 references:
   skills:
     - agent-notify
@@ -9,7 +9,6 @@ references:
     - review-code
     - review-verify
     - dev-docs
-    - dev-git
     - task-complete
 ---
 
@@ -133,6 +132,7 @@ Follow this sequence strictly:
 │     - If passing: /agent-notify complete TASK-XXX --details │
 │     - Use /dev-docs to update test report                   │
 │     - Use /task-complete to mark done                       │
+│     - [orchestrator routes to review-git]                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -250,9 +250,11 @@ Previous agent creates handoff at `state/progress/HANDOFF_TASK-XXX_{from}_to_qa.
    → Create QA report summary
 
 3. /task-complete
-   → Mark task complete
-   → Status change triggers orchestrator to close task or advance
+   → Mark task complete (status = COMPLETE)
+   → Orchestrator routes to review-git for git operations
 ```
+
+**Note:** review-git agent will handle commit/push decisions.
 
 ### Option 2: Issues Found - Request Revision
 
@@ -319,6 +321,7 @@ npx tsx bin/agent-notify.ts complete TASK-001 --details
 # 8. Finalize
 /dev-docs
 /task-complete
+→ Orchestrator routes to review-git for git operations
 ```
 
 ## Example Session (Issues Found)
